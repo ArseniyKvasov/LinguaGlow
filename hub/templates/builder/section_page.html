@@ -1,0 +1,157 @@
+{% extends 'builder/lesson_page.html' %}
+{% load static %}
+{% block content %}
+
+<style>
+    /* Стили для формы */
+    #wordListFormContainer {
+        margin-top: 1rem;
+        padding: 1rem;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+
+    .word-pair {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+    }
+
+    /* Стили для кнопок */
+    #showWordListFormButton {
+        margin-bottom: 1rem;
+    }
+
+    #addWordPairButton {
+        margin-bottom: 1rem;
+    }
+    .word-list-item {
+        cursor: grab;  /* Курсор при наведении на список слов */
+    }
+
+    .word-list-item:active {
+        cursor: grabbing;  /* Курсор при перетаскивании */
+    }
+</style>
+
+<hr>
+
+<div id="loadedTasks">
+    {% for task in tasks %}
+        <div class="task-item" id="task-{{ task.id }}">
+            {% if task.content_type.model == "wordlist" %}
+                <!-- Отображение списка слов -->
+                <div class="word-list-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    <ul>
+                        {% for word_pair in task.content_object.words %}
+                            <li>{{ word_pair.english }} - {{ word_pair.russian }}</li>
+                        {% endfor %}
+                    </ul>
+                    <button type="button" class="edit-task btn btn-warning btn-sm" data-task-id="{{ task.id }}">Редактировать</button>
+                    <button type="button" class="delete-task btn btn-danger btn-sm" data-task-id="{{ task.id }}">Удалить</button>
+                </div>
+            {% elif task.content_type.model == "essay" %}
+                <!-- Отображение эссе -->
+                <div class="essay-item">
+                    <h3>Эссе</h3>
+                    <p>{{ task.content_object.question }}</p>
+                    <button type="button" class="edit-task btn btn-warning btn-sm" data-task-id="{{ task.id }}">Редактировать</button>
+                    <button type="button" class="delete-task btn btn-danger btn-sm" data-task-id="{{ task.id }}">Удалить</button>
+                </div>
+            {% endif %}
+            <!-- Добавьте другие типы заданий по аналогии -->
+        </div>
+    {% endfor %}
+</div>
+
+
+<!-- Контейнер для формы (изначально скрыт) -->
+<div id="wordListFormContainer" style="display: none;">
+    <form id="wordListForm" method="post" action="{% url 'add_word_list' selected_section.id %}">
+        {% csrf_token %}
+        {{ wordListFormSet.management_form }}  <!-- Управление формсетом -->
+
+        <!-- Поле для названия списка слов -->
+        <div class="form-group">
+            <label for="wordListTitle">Название списка слов</label>
+            <input type="text" class="form-control" id="wordListTitle" name="title" required>
+        </div>
+
+        <!-- Контейнер для пар слов -->
+        <div id="wordPairsContainer">
+            {% for form in wordListFormSet %}
+                <div class="word-pair">
+                    {{ form.as_p }}
+                    <button type="button" class="delete-word-pair btn btn-danger btn-sm">Удалить</button>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Кнопка для добавления новой пары слов -->
+        <button type="button" id="addWordPairButton" class="btn btn-secondary mb-3">
+            <i class="bi bi-plus"></i> Добавить пару слов
+        </button>
+
+        <div class="form-group">
+            <label for="quickInput">Быстрый ввод (вставьте слова в формате "слово - перевод")</label>
+            <textarea id="quickInput" class="form-control" rows="3"></textarea>
+            <button type="button" id="quickInputButton" class="btn btn-secondary mt-2">Заполнить поля</button>
+        </div>
+
+        <!-- Кнопка для отправки формы -->
+        <button type="submit" class="btn btn-primary">Сохранить список слов</button>
+    </form>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+<!-- Кнопка "Добавить задание" -->
+<button id="addTaskButton" type="button" class="btn btn-primary mb-3">
+    <i class="bi bi-plus"></i> Добавить задание
+</button>
+
+<!-- Кнопки -->
+<div class="container mt-5 taskSelection" data-section-id="{{ selected_section.id }}" style="display: none;">
+    <button type="button" class="btn btn-secondary mr-2 mb-2" id="showWordListFormButton"><i class="bi bi-list"></i> Список слов</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-arrow-left-right"></i> Соотнести слово с переводом</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-file-earmark-text"></i> Эссе</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-sticky"></i> Заметка</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-image"></i> Картинка</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-layout-split"></i> Распределить по колонкам</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-text-paragraph"></i> Составить предложение в правильном порядке</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-puzzle"></i> Составить слово</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-pen"></i> Заполнить пропуски словами из списка</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-pen-fill"></i> Заполнить пропуски подходящими словами</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-chat-dots"></i> Диалог</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-newspaper"></i> Статья</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-volume-up"></i> Аудио</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-check-circle"></i> Тест</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-check"></i> Правда или ложь</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-tag"></i> Подписать картинку</button>
+    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-search"></i> Филворд</button>
+</div>
+
+
+
+
+
+
+
+
+
+<script defer src="{% static 'builder/section_page.js' %}"></script>
+<script src="https://unpkg.com/htmx.org"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+{% endblock %}

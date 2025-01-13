@@ -1,0 +1,57 @@
+<h2>Список курсов</h2>
+<ul>
+    {% for course in courses %}
+        <li>
+            {{ course.name }} ({{ course.description }}) <a href="{% url 'lesson_list' course.id %}">Перейти</a>
+            <form method="POST" action="{% url 'delete_course' course.id %}" onsubmit="return confirm('Are you sure you want to delete this course? All associated lessons will also be deleted.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+            </form>
+        </li>
+    {% empty %}
+        <li>Нет курсов для отображения.</li>
+    {% endfor %}
+</ul>
+
+<button data-bs-toggle="modal" data-bs-target="#addCourseModal">Добавить курс</button>
+
+<!-- Modal -->
+<div class="modal fade" id="addCourseModal" tabindex="-1" aria-labelledby="addCourseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'create_course' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addCourseModalLabel">Add Course</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Course Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="student_level" class="form-label">Student Level</label>
+                        <select class="form-select" id="student_level" name="student_level" required>
+                            <option value="starter">Starter</option>
+                            <option value="elementary">Elementary</option>
+                            <option value="pre_intermediate">Pre-Intermediate</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="upper_intermediate">Upper-Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save Course</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
