@@ -1,9 +1,10 @@
 {% extends 'builder/lesson_page.html' %}
 {% load static %}
+{% load custom_filters %}
 {% block content %}
 
 <style>
-    /* Стили для формы */
+    /* Общие стили для форм */
     #wordListFormContainer {
         margin-top: 1rem;
         padding: 1rem;
@@ -20,138 +21,979 @@
     }
 
     /* Стили для кнопок */
-    #showWordListFormButton {
-        margin-bottom: 1rem;
-    }
-
+    #showWordListFormButton,
     #addWordPairButton {
         margin-bottom: 1rem;
     }
-    .word-list-item {
-        cursor: grab;  /* Курсор при наведении на список слов */
+
+    /* Стили для перетаскивания */
+    .drag-enabled .task-item {
+        cursor: grab;
     }
 
-    .word-list-item:active {
-        cursor: grabbing;  /* Курсор при перетаскивании */
+    .drag-enabled .task-item:active {
+        cursor: grabbing;
+    }
+
+    #toggleDragButton.active {
+        background-color: #28a745;
+        border-color: #28a745;
+    }
+
+    /* Центрирование элементов */
+    .centeredElement {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        z-index: 10;
+        max-height: 90vh;
+        overflow-y: auto;
+        width: 90%;
+        max-width: 600px;
+    }
+
+    /* Стили для изображений */
+    .image-item {
+        transition: transform 0.2s;
+    }
+
+    .image-item:hover {
+        transform: scale(1.03);
+    }
+
+    .image-preview {
+        min-height: 80px;
+        background: #f8f9fa;
+        transition: opacity 0.2s;
+        margin: 4px 0;
+        position: relative;
+    }
+
+    .drop-indicator {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        border: 2px dashed #dee2e6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+    }
+
+    .drop-indicator i {
+        font-size: 2rem;
+        opacity: 0.5;
+    }
+
+    .img-cover {
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+    }
+
+    .img-fluid {
+        display: block;
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Утилиты */
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .upload-label {
+        cursor: pointer;
+        transition: opacity 0.2s;
+    }
+
+    .upload-label:hover {
+        opacity: 0.8;
+    }
+
+    .search-results {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 4px;
+    }
+
+    .image-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        max-height: 50vh; /* Высота контейнера равна высоте экрана */
+        margin-y: 1rem;
+    }
+
+    .image-item {
+        text-align: center;
+        max-width: 80%; /* Максимальная ширина картинки */
+        max-height: 50vh; /* Максимальная высота картинки */
+    }
+
+    .image-item img {
+        max-width: 100%; /* Картинка не превышает ширину контейнера */
+        max-height: 50vh; /* Картинка не превышает высоту контейнера */
+        border-radius: 15px; /* Закругленные края */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Тень */
+    }
+
+    .image-item:hover img {
+        transform: scale(1.03);
+    }
+    .column-item {
+        transition: transform 0.2s;
+    }
+    .column-item.active {
+        transform: scale(1.02);
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .word-block {
+        display: inline-block;
+        margin: 3px;
+        padding: 5px 10px;
+        background: #f0ad4e;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+    }
+    .sentence-item {
+        transition: all 0.3s ease;
+        background: #f8f9fa;
+    }
+
+    .sentence-item:hover {
+        background: #fff;
+        transform: translateX(5px);
+    }
+
+    .editable-field {
+        cursor: pointer;
+        border-bottom: 1px dashed #666;
+    }
+
+    .edit-textarea {
+        resize: none;
+        min-height: 80px;
+    }
+
+    .word-block {
+        white-space: nowrap;
+    }
+
+    .puzzle-container {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 5px;
+    }
+
+    .puzzle-piece {
+        background-color: #4A90E2;
+        color: white;
+        font-weight: bold;
+        padding: 10px;
+        border-radius: 5px;
+        display: inline-block;
+        text-align: center;
+        min-width: 30px;
+        box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .correct-word {
+        font-size: 14px;
+        color: #333;
+    }
+
+    .hint {
+        font-size: 12px;
+        color: #777;
+    }
+
+    .task-buttons {
+        margin-top: 10px;
+    }
+    .fill-in-the-blank {
+        width: 150px;
+        height: 30px;
+        display: inline-block;
+        margin: 5px;
+        border: 1px solid #ccc;
+    }
+
+    .fill-in-the-blank:hover {
+        border-color: #007bff;
+        background-color: #e9f7fe;
+    }
+
+    .fill-in-the-blank[title]:hover::after {
+        content: attr(title);
+        position: absolute;
+        background-color: #000;
+        color: #fff;
+        padding: 5px;
+        font-size: 14px;
+        border-radius: 5px;
+        top: -30px;
+        left: 0;
+        z-index: 1;
+        white-space: nowrap;
+    }
+        .article-editor {
+        border: 1px solid #ccc;
+        padding: 10px;
+        min-height: 150px;
+        background-color: #fff;
+    }
+
+    #articleToolbar {
+        margin-bottom: 10px;
+    }
+
+    .format-btn {
+        background: #f5f5f5;
+        border: none;
+        padding: 5px 10px;
+        cursor: pointer;
+    }
+
+    .format-btn:hover {
+        background: #e0e0e0;
+    }
+    .label-images-block {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+    }
+
+    .search-results-label-images {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 4px;
+    }
+
+    .search-results-label-images .image-item {
+        margin-bottom: 10px;
+    }
+
+    .label-images-block {
+        border: 1px solid #ddd;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 5px;
+    }
+
+    .image-preview-label-images {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8f9fa; /* Добавляем фон для контейнера */
+    }
+
+    .image-preview-label-images img {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .search-results-label-images {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 4px;
+    }
+
+    .search-results-label-images .image-item {
+        margin-bottom: 10px;
+    }
+    iframe {
+        width: 90%;
+        height: 90vh;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    #activityBlock, #activityCreationBlock {
+        width: 100%;
+        max-width: 1200px; /* максимальная ширина, чтобы окно не растягивалось слишком сильно */
+        margin: 0 auto; /* центрирование блока */
+    }
+    .task-item {
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    .task-item input[type="checkbox"]:checked + label + div {
+      background-color: #f0f0f0; /* Серый цвет */
+    }
+
+    .view-content-button-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+
+    .content-preview {
+      margin-top: 30px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      background-color: #f9f9f9;
+    }
+
+    .content-preview h2 {
+      margin-bottom: 10px;
+    }
+
+    .content-preview pre {
+      background-color: #fff;
+      padding: 10px;
+      border-left: 5px solid red;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+
+    .noteContent {
+        white-space: pre-wrap;
     }
 </style>
 
 <hr>
 
-<div id="loadedTasks">
+<button id="toggleDragButton" class="btn btn-secondary" style="position: fixed; top: 10px; right: 10px;">
+    <i class="bi bi-arrows-move"></i> Перетаскивание
+</button>
+
+<div id="loadedTasks" class="col-12 col-md-8 col-lg-6 text-center mx-auto">
     {% for task in tasks %}
-        <div class="task-item" id="task-{{ task.id }}">
+        <div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
             {% if task.content_type.model == "wordlist" %}
-                <!-- Отображение списка слов -->
                 <div class="word-list-item">
+                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
+                    <label for="task-{{ task.id }}"></label>
                     <h3>{{ task.content_object.title }}</h3>
-                    <ul>
-                        {% for word_pair in task.content_object.words %}
-                            <li>{{ word_pair.english }} - {{ word_pair.russian }}</li>
-                        {% endfor %}
-                    </ul>
-                    <button type="button" class="edit-task btn btn-warning btn-sm" data-task-id="{{ task.id }}">Редактировать</button>
-                    <button type="button" class="delete-task btn btn-danger btn-sm" data-task-id="{{ task.id }}">Удалить</button>
-                </div>
-            {% elif task.content_type.model == "essay" %}
-                <!-- Отображение эссе -->
-                <div class="essay-item">
-                    <h3>Эссе</h3>
-                    <p>{{ task.content_object.question }}</p>
-                    <button type="button" class="edit-task btn btn-warning btn-sm" data-task-id="{{ task.id }}">Редактировать</button>
-                    <button type="button" class="delete-task btn btn-danger btn-sm" data-task-id="{{ task.id }}">Удалить</button>
+                    {% for word, translation in task.content_object.words.items %}
+                        <div class="row g-3">
+                            <div class="col-6 card shadow p-2 text-center">{{ word }}</div>
+                            <div class="col-6 card shadow p-2 text-center">{{ translation }}</div>
+                        </div>
+                    {% endfor %}
                 </div>
             {% endif %}
-            <!-- Добавьте другие типы заданий по аналогии -->
+            {% if task.content_type.model == "matchupthewords" %}
+                <div class="match-up-the-words-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    {% for word, translation in task.content_object.pairs.items %}
+                        <div class="row g-3">
+                            <div class="col-6 card shadow p-2 text-center bg-warning">{{ word }}</div>
+                            <div class="col-6 card shadow p-2 text-center bg-warning">{{ translation }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "essay" %}
+                <div class="essay-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    {% for conditions, score in task.content_object.conditions.items %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" value="" id="conditional-{{ forloop.counter }}">
+                            <label class="form-check-label" for="conditional-{{ forloop.counter }}">
+                                {{ conditions }} <span class="text-muted">({{ score }} баллов)</span>
+                            </label>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "note" %}
+                <div class="note-item">
+                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
+                    <label for="task-{{ task.id }}"></label>
+                    <h3>{{ task.content_object.title }}</h3>
+                    <p class="noteContent">{{ task.content_object.content }}</p>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "image" %}
+                <div class="image-container">
+                    <div class="image-item">
+                        <h3>{{ task.content_object.caption }}</h3>
+                        <img src="{{ task.content_object.image_url }}" alt="{{ task.content_object.caption }}" class="img-fluid">
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "sortintocolumns" %}
+                <div class="sort-into-columns-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    {% for column_title, words in task.content_object.columns.items %}
+                        <div class="column">
+                            <h4>{{ column_title }}</h4>
+                            <ul>
+                                {% for word in words %}
+                                    <li>{{ word }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "makeasentence" %}
+                <div class="sentence-order-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    {% for sentence in task.content_object.sentences %}
+                        <div class="sentence-block">
+                            <p>{{ sentence.shuffled }} <strong>({{ sentence.correct }})</strong></p>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "unscramble" %}
+                <div class="unscramble-task-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    {% for item in task.content_object.words %}
+                        <div class="word-block">
+                            <div class="puzzle-container">
+                                {% for letter in item.shuffled_word %}
+                                    <div class="puzzle-piece">{{ letter }}</div>
+                                {% endfor %}
+                            </div>
+                            <p class="correct-word">(Правильное слово: <strong>{{ item.word }}</strong>)</p>
+                            {% if item.hint %}
+                                <p class="hint-text"><em>Подсказка: {{ item.hint }}</em></p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "fillintheblanks" %}
+                <div class="fill-in-the-blanks-item">
+                    <h3>{{ task.content_object.title }}</h3>
+
+                    <!-- Блок с пропущенными словами, если формат с листом -->
+                    {% if task.content_object.display_format == "list" %}
+                        <div class="missing-words-list">
+                            <h4>Пропущенные слова:</h4>
+                            <ul id="answer-list-{{ task.id }}">
+                                <!-- Список ответов будет добавлен через JS -->
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- Текст с пропусками -->
+                    <p id="task-text-{{ task.id }}">
+                        {{ task.content_object.text }}
+                    </p>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "article" %}
+                <div class="article-item">
+                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
+                    <label for="task-{{ task.id }}"></label>
+                    <h3 data-sanitize="true">{{ task.content_object.title|escape }}</h3>
+                    <div class="article-content">
+                      <div data-sanitize="true">{{ task.content_object.content|safe }}</div>
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "test" %}
+                <div class="test-item">
+                    {% if task.content_object.time %}
+                        Time: <h3 class="mb-3">{{ task.content_object.time }}</h3>
+                    {% endif %}
+
+                    <div class="questions-list">
+                        {% if task.content_object.questions %}
+                            <ul class="list-group">
+                                {% for question in task.content_object.questions %}
+                                    <li class="list-group-item">
+                                        <strong>{{ question.question }}</strong>
+                                        <ul class="list-group mt-2">
+                                            {% for answer in question.answers %}
+                                                <li class="list-group-item{% if answer.correct %} list-group-item-success{% else %} list-group-item-secondary{% endif %}">
+                                                    {{ answer.answer }}
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>Вопросы не заданы.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "trueorfalse" %}
+                <div class="true-false-item">
+                    <div class="questions-list">
+                        {% if task.content_object.statements %}
+                            <ul class="list-group">
+                                {% for question in task.content_object.statements %}
+                                    <li class="list-group-item">
+                                        <strong>{{ question.question }}</strong>
+                                        <p class="mt-2">{{ question.trueAnswer | yesno:"Правда,Ложь" }}</p>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p>Вопросы не заданы.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "labelimages" %}
+                <div class="label-images-item">
+                    <div class="questions-list">
+                        {% if task.content_object.image_urls and task.content_object.labels %}
+                            <div class="row">
+                                {% for image, label in task.content_object.image_urls.all|zip_lists:task.content_object.labels %}
+                                    <div class="col-xxl-1 col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+                                        <div class="card h-100">
+                                            <div class="image-preview-label-images">
+                                                <img src="{{ image.image_url }}" alt="{{ label }}" class="card-img-top rounded" style="object-fit: cover;">
+                                            </div>
+                                            <div class="card-body">
+                                                <h5 class="card-title text-center">{{ label }}</h5>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p>Изображения не заданы.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            {% if task.content_type.model == "embeddedtask" %}
+                <div class="interaction-item">
+                    <h3>{{ task.content_object.title }}</h3>
+                    <div>{{ task.content_object.embed_code|safe }}</div>
+                    <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="interactions">Редактировать</button>
+                    <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
+                </div>
+            {% endif %}
+            <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="{{ task.content_type.model }}">Редактировать</button>
+            <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
         </div>
     {% endfor %}
 </div>
 
 
-<!-- Контейнер для формы (изначально скрыт) -->
-<div id="wordListFormContainer" style="display: none;">
-    <form id="wordListForm" method="post" action="{% url 'add_word_list' selected_section.id %}">
-        {% csrf_token %}
-        {{ wordListFormSet.management_form }}  <!-- Управление формсетом -->
-
-        <!-- Поле для названия списка слов -->
-        <div class="form-group">
-            <label for="wordListTitle">Название списка слов</label>
-            <input type="text" class="form-control" id="wordListTitle" name="title" required>
-        </div>
-
-        <!-- Контейнер для пар слов -->
-        <div id="wordPairsContainer">
-            {% for form in wordListFormSet %}
-                <div class="word-pair">
-                    {{ form.as_p }}
-                    <button type="button" class="delete-word-pair btn btn-danger btn-sm">Удалить</button>
-                </div>
-            {% endfor %}
-        </div>
-
-        <!-- Кнопка для добавления новой пары слов -->
-        <button type="button" id="addWordPairButton" class="btn btn-secondary mb-3">
-            <i class="bi bi-plus"></i> Добавить пару слов
-        </button>
-
-        <div class="form-group">
-            <label for="quickInput">Быстрый ввод (вставьте слова в формате "слово - перевод")</label>
-            <textarea id="quickInput" class="form-control" rows="3"></textarea>
-            <button type="button" id="quickInputButton" class="btn btn-secondary mt-2">Заполнить поля</button>
-        </div>
-
-        <!-- Кнопка для отправки формы -->
-        <button type="submit" class="btn btn-primary">Сохранить список слов</button>
-    </form>
-</div>
 
 
 
 
-
-
-
-
-
-
-
-<!-- Кнопка "Добавить задание" -->
-<button id="addTaskButton" type="button" class="btn btn-primary mb-3">
+<!-- Кнопка для открытия блока -->
+<button id="addActivityButton" type="button" class="btn btn-primary mb-3">
     <i class="bi bi-plus"></i> Добавить задание
 </button>
 
-<!-- Кнопки -->
-<div class="container mt-5 taskSelection" data-section-id="{{ selected_section.id }}" style="display: none;">
-    <button type="button" class="btn btn-secondary mr-2 mb-2" id="showWordListFormButton"><i class="bi bi-list"></i> Список слов</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-arrow-left-right"></i> Соотнести слово с переводом</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-file-earmark-text"></i> Эссе</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-sticky"></i> Заметка</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-image"></i> Картинка</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-layout-split"></i> Распределить по колонкам</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-text-paragraph"></i> Составить предложение в правильном порядке</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-puzzle"></i> Составить слово</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-pen"></i> Заполнить пропуски словами из списка</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-pen-fill"></i> Заполнить пропуски подходящими словами</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-chat-dots"></i> Диалог</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-newspaper"></i> Статья</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-volume-up"></i> Аудио</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-check-circle"></i> Тест</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-check"></i> Правда или ложь</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-tag"></i> Подписать картинку</button>
-    <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-search"></i> Филворд</button>
+<!-- Оверлей (полупрозрачный фон) -->
+<div id="overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 5;"></div>
+
+<!-- Блок с выбором задания -->
+<div id="activityBlock" class="centeredElement">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Выберите задание</h5>
+        </div>
+        <div class="card-body">
+            <!-- Кнопки с опциями -->
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="wordlist"><i class="bi bi-list"></i> Список слов</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="matchupthewords"><i class="bi bi-arrow-left-right"></i> Соотнести слово с переводом</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="essay"><i class="bi bi-file-earmark-text"></i> Эссе</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="note"><i class="bi bi-sticky"></i> Заметка</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="image"><i class="bi bi-image"></i> Картинка</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="sortintocolumns"><i class="bi bi-layout-split"></i> Распределить по колонкам</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="makeasentence"><i class="bi bi-text-paragraph"></i> Составить предложение</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="unscramble"><i class="bi bi-puzzle"></i> Составить слово</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="fillintheblanks"><i class="bi bi-pen"></i> Заполнить пропуски</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="article"><i class="bi bi-newspaper"></i> Статья</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="test"><i class="bi bi-check-circle"></i> Тест</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="trueorfalse"><i class="bi bi-check"></i> Правда или ложь</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="labelimages"><i class="bi bi-tag"></i> Подписать картинку</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="embeddedtask"><i class="bi bi-tag"></i> Интеграции</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-search"></i> Филворд</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-volume-up"></i> Аудио</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-chat-dots"></i> Диалог</button>
+        </div>
+        <div class="card-footer">
+            <button type="button" class="btn btn-secondary" id="closeActivityBlock">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="activityCreationBlock" style="display: none;" class="centeredElement">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">Создание задания</h5>
+        </div>
+        <div class="card-body"></div>
+        <div class="card-footer">
+            <button type="button" class="btn btn-secondary" id="closeActivityCreationBlock">Закрыть</button>
+        </div>
+    </div>
+</div>
+
+<div id="sectionId" style="display: none;">{{ selected_section.id }}</div>
+
+
+
+<div id="wordListFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="wordListTitleInput" class="form-control mb-3" placeholder="Введите заголовок">
+
+        <div id="wordListContainer"></div>
+        <button type="button" id="addPairWordListButton" class="btn btn-primary">Добавить пару</button>
+        <button type="button" id="resetWordListButton" class="btn btn-danger">Обнулить</button>
+        <button type="button" id="AIWordListButton" class="btn btn-primary">Сгенерировать AI</button>
+        <textarea id="quickWordListInput" class="form-control my-2" placeholder="Введите текст для быстрого ввода (слово - перевод)"></textarea>
+        <button type="button" id="quickInputWordListButton" class="btn btn-secondary" disabled>Быстрый ввод</button>
+        <button type="button" id="saveWordListButton" class="btn btn-success" disabled>Сохранить</button>
+    </div>
+    <div id="AIWordListBlock" style="display: none;">
+        <p class="text-center">Генерация ИИ</p>
+        <div class="d-flex gap-2">
+            <input class="form-control flex-grow-1 ai-input" placeholder="Введите тему">
+            <input type="number" placeholder="Любое" class="form-control ai-quantity-input" min="1" style="max-width: 120px;">
+        </div>
+
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-first" value="first" checked>
+            <label class="form-check-label" for="option-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-selected" value="selected">
+            <label class="form-check-label" for="option-selected">На основе выбранного задания</label>
+        </div>
+
+        <button class="add-additional-wordlist-requirements-button btn btn-outline-warning">Добавить требование</button>
+        <input class="additional-wordlist-requirements form-control" style="display: none;" placeholder="Введи дополнительное требование.">
+        <button type="button" id="generateAIWordListButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="matchUpTheWordsFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="matchUpTheWordsTitleInput" class="form-control mb-3" placeholder="Введите заголовок">
+        <div id="matchUpTheWordsContainer"></div>
+        <div class="d-flex gap-2 mb-2">
+            <button type="button" id="addPairMatchUpTheWordsButton" class="btn btn-primary">Добавить пару</button>
+            <button type="button" id="fillInMatchUpTheWordsAI" class="btn btn-success">Заполнить AI</button>
+            <button type="button" id="resetMatchUpTheWordsButton" class="btn btn-danger">Обнулить</button>
+        </div>
+        <textarea id="quickMatchUpTheWordsInput" class="form-control my-2" placeholder="Введите текст для быстрого ввода (слово - перевод)"></textarea>
+        <button type="button" id="quickInputMatchUpTheWordsButton" class="btn btn-secondary" disabled>Быстрый ввод</button>
+        <button type="button" id="saveMatchUpTheWordsButton" class="btn btn-success" disabled>Сохранить</button>
+    </div>
+</div>
+
+<div id="essayFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="essayTaskInput" class="form-control" placeholder="Введите задание">
+
+        <div id="conditionsContainer" class="my-3"></div>
+
+        <button type="button" id="addConditionButton" class="btn btn-primary">Добавить условие</button>
+        <button type="button" id="resetConditionsButton" class="btn btn-danger">Обнулить условия</button>
+        <button type="button" id="AIEssayButton" class="btn btn-primary">Сгенерировать AI</button>
+        <button type="button" id="saveEssayButton" class="btn btn-success">Сохранить</button>
+    </div>
+    <div id="AIEssayBlock" style="display: none;">
+        <p class="text-center">Генерация ИИ</p>
+        <div class="d-flex gap-2">
+            <input type="range" class="form-control" min="10" max="400" step="10" style="max-width: 120px;">
+            <span class="range-value"></span>
+        </div>
+
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-essay-first" value="first" checked>
+            <label class="form-check-label" for="option-essay-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-essay-selected" value="selected">
+            <label class="form-check-label" for="option-essay-selected">На основе выбранного задания</label>
+        </div>
+
+        <button class="add-additional-essay-requirements-button btn btn-outline-warning">Добавить требование</button>
+        <input class="additional-essay-requirements form-control" style="display: none;" placeholder="Введи дополнительное требование.">
+        <button type="button" id="generateAIEssayButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="noteFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="noteTitleInput" class="form-control" placeholder="Введите заголовок">
+
+        <textarea id="noteContentInput" class="form-control" placeholder="Введите содержание (необязательно)"></textarea>
+        <button type="button" id="AINoteButton" class="btn btn-primary mt-3">Генерация ИИ</button>
+        <button type="button" id="saveNoteButton" class="btn btn-success mt-3">Сохранить</button>
+    </div>
+    <div id="AINoteBlock" style="display: none;">
+        <p class="text-center">Генерация заметки</p>
+        <div class="mb-3">
+            <label for="noteTopic" class="form-label">Введите тему заметки:</label>
+            <input type="text" class="form-control" id="noteTopic" placeholder="Тема заметки">
+        </div>
+        <div class="mb-3">
+            <label for="noteRequirements" class="form-label">Дополнительные требования:</label>
+            <textarea class="form-control" id="noteRequirements" rows="3" placeholder="Введите дополнительные требования"></textarea>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-note-first" value="first" checked>
+            <label class="form-check-label" for="option-note-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-note-selected" value="selected">
+            <label class="form-check-label" for="option-note-selected">На основе выбранного задания</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="shortNote" name="shortNote">
+            <label class="form-check-label" for="shortNote">Короткая заметка</label>
+        </div>
+        <button type="button" id="generateAINoteButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="imageFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <div id="imageBlocksContainer">
+            <!-- Блоки с изображениями будут добавляться сюда -->
+        </div>
+
+        <div class="mt-3">
+            <button type="button" id="addImageBlockButton" class="btn btn-primary">Добавить картинку</button>
+            <button type="button" id="searchAllButton" class="btn btn-secondary">Найти все</button>
+            <button type="button" id="saveAllButton" class="btn btn-success">Сохранить все</button>
+        </div>
+    </div>
+</div>
+
+<div id="columnsFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <div id="columnsContainer" class="row g-3"></div>
+        <div class="d-flex gap-2 mb-2 flex-wrap">
+            <button type="button" id="addColumnButton" class="btn btn-primary">Добавить колонку</button>
+            <button type="button" id="fillColumnsAI" class="btn btn-success" style="display: none;">Заполнить AI</button>
+        </div>
+        <button type="button" id="saveSortIntoColumnsButton" class="btn btn-success">Сохранить</button>
+    </div>
+</div>
+
+<div id="sentenceFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="taskTitleInput" class="form-control mb-3" placeholder="Введите заголовок задания">
+
+        <textarea rows="3" id="sentenceInput" class="form-control" placeholder="Введите предложение"></textarea>
+        <div id="wordPreview"></div>
+        <button type="button" id="addSentenceButton" class="btn btn-primary mt-2">Добавить предложение</button>
+    </div>
+
+    <div id="sentenceListContainer">
+        <h4>Добавленные предложения:</h4>
+        <ul id="sentenceList" class="list-group"></ul>
+    </div>
+
+    <button type="button" id="saveSentenceTaskButton" class="btn btn-success mt-3">Сохранить задание</button>
+</div>
+
+<div id="unscrambleFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="unscrambleTitleInput" class="form-control mb-3" placeholder="Введите заголовок задания">
+        <textarea rows="3" id="wordInput" class="form-control" placeholder="Введите слово или фразу"></textarea>
+        <div id="unscrambleWordPreview"></div>
+        <button type="button" id="addWordButton" class="btn btn-primary mt-2">Добавить слово</button>
+    </div>
+    <div id="unscrambleWordListContainer">
+        <h4>Добавленные слова:</h4>
+        <ul id="unscrambleWordList" class="list-group"></ul>
+    </div>
+    <button type="button" id="saveUnscrambleTaskButton" class="btn btn-success mt-3">Сохранить задание</button>
+</div>
+
+<div id="fillTaskFormContainer" style="display: none;" class="centeredElement">
+    <input type="text" id="fillTaskTitleInput" class="form-control" placeholder="Введите название">
+
+    <div>
+        <input type="radio" id="formatList" name="displayFormat" value="list" checked>
+        <label for="formatList">Со списком</label>
+
+        <input type="radio" id="formatText" name="displayFormat" value="text">
+        <label for="formatText">Сплошной текст</label>
+    </div>
+
+    <label id="fillTaskInstruction" for="fillTaskTextInput" style="font-size: 12px; font-style: italic;">Это пример текста с [правильным ответом] в квадратных скобках.</label>
+    <p id="fillTaskWarning" class="text-danger bold" style="font-size: 10px; font-style: italic;"></p>
+    <textarea id="fillTaskTextInput" class="form-control" rows="6" contenteditable="true"></textarea>
+    <button id="AIFillInTheBlanksButton" class="btn btn-primary">Сгенерировать ИИ</button>
+    <button id="saveFillTaskButton" class="btn btn-success mt-4">Сохранить задание</button>
+
+    <div id="AIFillInTheBlanksBlock" style="display: none;">
+        <p class="text-center">Генерация заданий "Заполните пропуски"</p>
+        <div class="d-flex gap-2">
+            <input class="form-control flex-grow-1 ai-input" placeholder="Введите тему">
+            <input type="range" class="form-control ai-quantity-input" min="4" max="20" step="1" value="10" style="max-width: 120px;">
+            <span class="range-value"></span>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-first" value="first" checked>
+            <label class="form-check-label" for="option-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-selected" value="selected">
+            <label class="form-check-label" for="option-selected">На основе выбранного задания</label>
+        </div>
+        <button class="add-additional-fill-the-blanks-requirements-button btn btn-outline-warning">Добавить требование</button>
+        <input class="additional-fill-the-blanks-requirements form-control" style="display: none;" placeholder="Введи дополнительное требование.">
+        <button type="button" id="generateAIFillInTheBlanksButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="articleTaskFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <input type="text" id="articleTaskTitleInput" class="form-control" placeholder="Введите заголовок">
+
+        <div id="articleEditor" class="form-control" contenteditable="true" style="min-height: 150px;"></div>
+
+        <div class="text-end mt-2">
+            <button type="button" class="btn btn-secondary format-btn" data-command="bold"><b>B</b></button>
+            <button type="button" class="btn btn-secondary format-btn" data-command="italic"><i>I</i></button>
+            <button type="button" class="btn btn-secondary format-btn" data-command="underline"><u>U</u></button>
+        </div>
+
+        <button type="button" id="AIArticleButton" class="btn btn-primary mt-3">Сгенерировать статью</button>
+        <button type="button" id="saveArticleTaskButton" class="btn btn-success mt-3">Сохранить</button>
+    </div>
+    <div id="AIArticleBlock" style="display: none;">
+        <p class="text-center">Генерация ИИ</p>
+        <div class="mb-3">
+            <label for="articleTitle" class="form-label">Введите заголовок статьи:</label>
+            <input type="text" class="form-control" id="articleTitle" placeholder="Заголовок статьи">
+        </div>
+        <div class="mb-3">
+            <label for="articleRequirements" class="form-label">Дополнительные требования:</label>
+            <textarea class="form-control" id="articleRequirements" rows="3" placeholder="Введите дополнительные требования"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="articleLengthRange">Выберите длину статьи:</label>
+            <input type="range" class="form-control-range" id="articleLengthRange" min="50" max="500" step="50" value="200">
+            <span id="articleLengthValue">200</span> слов
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-article-first" value="first" checked>
+            <label class="form-check-label" for="option-article-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-article-selected" value="selected">
+            <label class="form-check-label" for="option-article-selected">На основе выбранного задания</label>
+        </div>
+        <button type="button" id="generateAIArticleButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="testTaskFormContainer" style="display: none;" class="centeredElement">
+    <div id="questionsContainer"></div>
+
+    <button id="AITestButton" class="btn btn-primary mt-3">Сгенерировать тест</button>
+    <button id="addQuestionButton" class="btn btn-primary mt-3">Добавить вопрос</button>
+    <button id="saveTestTaskButton" class="btn btn-success mt-3">Сохранить тест</button>
+    <div id="AITestBlock" style="display: none;">
+        <p class="text-center">Генерация ИИ</p>
+        <div class="mb-3">
+            <label for="testTopic" class="form-label">Введите тему теста:</label>
+            <input type="text" class="form-control" id="testTopic" placeholder="Тема теста">
+        </div>
+        <div class="mb-3">
+            <label for="testRequirements" class="form-label">Дополнительные требования:</label>
+            <textarea class="form-control" id="testRequirements" rows="3" placeholder="Введите дополнительные требования"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="testQuestionCount">Выберите количество вопросов:</label>
+            <input type="range" class="form-control-range" id="testQuestionCountRange" min="1" max="20" step="1" value="5">
+            <span id="testQuestionCountValue">5</span> вопросов
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-test-first" value="first" checked>
+            <label class="form-check-label" for="option-test-first">Сначала</label>
+        </div>
+        <div class="form-check form-check-inline">
+            <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-test-selected" value="selected">
+            <label class="form-check-label" for="option-test-selected">На основе выбранного задания</label>
+        </div>
+        <div class="mb-3">
+            <label for="testQuestionType">Выберите тип вопросов:</label>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="comprehension" name="questionType" value="comprehension">
+                <label class="form-check-label" for="comprehension">На понимание материала</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="grammar" name="questionType" value="grammar">
+                <label class="form-check-label" for="grammar">Грамматические</label>
+            </div>
+        </div>
+        <button type="button" id="generateAITestButton" class="btn btn-primary">Сгенерировать</button>
+    </div>
+</div>
+
+<div id="trueFalseTaskFormContainer" style="display: none;" class="centeredElement">
+    <div id="trueFalseQuestionsContainer"></div>
+
+    <button id="addTrueFalseQuestionButton" class="btn btn-primary mt-3">Добавить вопрос</button>
+    <button id="saveTrueFalseTaskButton" class="btn btn-success mt-3">Сохранить тест</button>
+</div>
+
+<div id="labelImagesFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <select id="taskFormatSelector" class="form-select">
+            <option value="manual">Ввод вручную</option>
+            <option value="list">Список</option>
+        </select>
+    </div>
+    <div id="labelImagesBlocksContainer">
+        <!-- Блоки с картинками и подписями будут добавляться сюда -->
+    </div>
+    <div class="mt-3">
+        <button type="button" id="addLabelImagesBlockButton" class="btn btn-primary">Добавить картинку</button>
+        <button type="button" id="searchAllLabelImagesButton" class="btn btn-secondary">Найти все</button>
+        <button type="button" id="saveAllLabelImagesButton" class="btn btn-success">Сохранить все</button>
+    </div>
+</div>
+
+<div id="interactionsFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <p class="text-primary">Доступные платформы: Quizlet, WordWall, Miro</p>
+        <p><span class="text-danger fw-bold">Важно!</span> Перед использованием ознакомьтесь с инструкцией для экономии своего времени.</p>
+        <input type="text" id="interactionTitleInput" class="form-control" placeholder="Введите название">
+
+        <textarea id="interactionEmbedInput" class="form-control" rows="4" placeholder='<iframe src="..."></iframe>'></textarea>
+
+        <button type="button" id="saveInteractionButton" class="btn btn-success">Сохранить</button>
+    </div>
 </div>
 
 
 
-
-
-
-
-
-
-<script defer src="{% static 'builder/section_page.js' %}"></script>
+<script src="{% static 'builder/display.js' %}"></script>
+<script src="{% static 'builder/main.js' %}"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
 <script src="https://unpkg.com/htmx.org"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+
+
+
+
+
+
+
+
 
 {% endblock %}

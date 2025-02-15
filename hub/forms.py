@@ -1,5 +1,6 @@
 from django.forms import formset_factory
 from django import forms
+from .models import essay
 
 class WordPairForm(forms.Form):
     english = forms.CharField(
@@ -14,3 +15,11 @@ class WordPairForm(forms.Form):
     )
 
 WordPairFormSet = formset_factory(WordPairForm, extra=1)  # extra=1 для одной пустой формы
+
+class EssayForm(forms.ModelForm):
+    class Meta:
+        model = essay
+        fields = ['title']  # Поле для ввода многострочного задания
+        widgets = {
+            'title': forms.Textarea(attrs={'rows': 5, 'class': 'form-control'}),  # Многострочное поле
+        }

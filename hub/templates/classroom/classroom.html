@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+<div class="container">
+    <div class="row">
+        <!-- Список разделов -->
+        <div class="col-md-3">
+            <ul>
+                {% for section in section_list %}
+                    <li>{{ section.name }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Задания -->
+        <div class="col-md-9">
+            {% for task in tasks %}
+                {% ifequal task.content_type.model 'wordlist' %}
+                    {% include 'tasks/wordlist.html' with task=task %}
+                {% elifequal task.content_type.model 'matchupthewords' %}
+                    {% include 'tasks/matchupthewords.html' with task=task %}
+                {% elifequal task.content_type.model 'essay' %}
+                    {% include 'tasks/essay.html' with task=task %}
+                {% elifequal task.content_type.model 'note' %}
+                    {% include 'tasks/note.html' with task=task %}
+                {% elifequal task.content_type.model 'image' %}
+                    {% include 'tasks/image.html' with task=task %}
+                {% elifequal task.content_type.model 'sortintocolumns' %}
+                    {% include 'tasks/sortintocolumns.html' with task=task %}
+                {% elifequal task.content_type.model 'makeasentence' %}
+                    {% include 'tasks/makeasentence.html' with task=task %}
+                {% elifequal task.content_type.model 'unscramble' %}
+                    {% include 'tasks/unscramble.html' with task=task %}
+                {% elifequal task.content_type.model 'fillinthblanks' %}
+                    {% include 'tasks/fillintheblanks.html' with task=task %}
+                {% elifequal task.content_type.model 'dialogue' %}
+                    {% include 'tasks/dialogue.html' with task=task %}
+                {% elifequal task.content_type.model 'article' %}
+                    {% include 'tasks/article.html' with task=task %}
+                {% elifequal task.content_type.model 'audio' %}
+                    {% include 'tasks/audio.html' with task=task %}
+                {% elifequal task.content_type.model 'test' %}
+                    {% include 'tasks/test.html' with task=task %}
+                {% elifequal task.content_type.model 'trueorfalse' %}
+                    {% include 'tasks/trueorfalse.html' with task=task %}
+                {% elifequal task.content_type.model 'labelimages' %}
+                    {% include 'tasks/labelimages.html' with task=task %}
+                {% endifequal %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

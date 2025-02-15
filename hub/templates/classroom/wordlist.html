@@ -1,0 +1,8 @@
+<div>
+    <h3>{{ task.title }}</h3>
+    <ul>
+        {% for word in task.words %}
+            <li>{{ word }}</li>
+        {% endfor %}
+    </ul>
+</div>

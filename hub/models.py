@@ -3,6 +3,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import uuid
+import bleach
 
 
 class course(models.Model):
@@ -66,6 +67,7 @@ class task(models.Model):
     content_object = GenericForeignKey('content_type', 'object_id')
 
     class Meta:
+        abstract = True
         ordering = ["order"]
 
     def __str__(self):
@@ -74,7 +76,7 @@ class task(models.Model):
 # Список слов
 class wordList(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, null=True)
+    title = models.CharField(max_length=255, default="Word List")
     words = models.JSONField()  # Список слов в формате JSON
 
     def __str__(self):
@@ -83,6 +85,7 @@ class wordList(models.Model):
 # Соотнести слово с переводом
 class matchUpTheWords(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, default="Match Up The Words")
     pairs = models.JSONField()  # Пары слов в формате JSON
 
     def __str__(self):
@@ -91,15 +94,16 @@ class matchUpTheWords(models.Model):
 # Эссе
 class essay(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    question = models.TextField()
-    answer = models.TextField(blank=True, null=True)
+    title = models.TextField()
+    conditions = models.JSONField(null=True)
 
     def __str__(self):
-        return f"Essay: {self.question}"
+        return f"Essay: {self.title}"
 
 # Заметка
 class note(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, default="Note")
     content = models.TextField()
 
     def __str__(self):
@@ -117,6 +121,7 @@ class image(models.Model):
 # Распределить по колонкам
 class sortIntoColumns(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, default="Sort Into Columns")
     columns = models.JSONField()  # Колонки и их элементы в формате JSON
 
     def __str__(self):
@@ -125,7 +130,8 @@ class sortIntoColumns(models.Model):
 # Составить предложение в правильном порядке
 class makeASentence(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    words = models.JSONField()  # Слова для составления предложения
+    title = models.CharField(max_length=255, default="Make A Sentence")
+    sentences = models.JSONField()
 
     def __str__(self):
         return f"Make A Sentence: {self.id}"
@@ -133,28 +139,31 @@ class makeASentence(models.Model):
 # Составить слово
 class unscramble(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    scrambled_word = models.CharField(max_length=255)
-    correct_word = models.CharField(max_length=255)
+    title = models.CharField(max_length=255, default="Unscramble")
+    words = models.JSONField()
 
     def __str__(self):
-        return f"Unscramble: {self.scrambled_word}"
+        return f"Unscramble: {self.words}"
 
-# Заполнить пропуски словами из списка
-class fillInTheBlanksFromTheList(models.Model):
+# Заполнить пропуски
+class fillInTheBlanks(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    text = models.TextField()
-    options = models.JSONField()  # Список слов для заполнения пропусков
-
-    def __str__(self):
-        return f"Fill In The Blanks From The List: {self.id}"
-
-# Заполнить пропуски подходящими словами
-class fillInTheBlanksWithSuitableWords(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, default="Fill In The Blanks")
     text = models.TextField()
 
+    DISPLAY_FORMAT_CHOICES = [
+        ('with_list', 'With list'),
+        ('without_list', 'Without list'),
+    ]
+
+    display_format = models.CharField(
+        max_length=20,
+        choices=DISPLAY_FORMAT_CHOICES,
+        default='with_list',  # Значение по умолчанию
+    )
+
     def __str__(self):
-        return f"Fill In The Blanks With Suitable Words: {self.id}"
+        return f"Fill In The Blanks: {self.id}"
 
 # Диалог
 class dialogue(models.Model):
@@ -199,13 +208,51 @@ class trueOrFalse(models.Model):
         return f"True Or False: {self.id}"
 
 # Подписать картинку
-class labelThePicture(models.Model):
+class labelImages(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    image_url = models.URLField()
-    labels = models.JSONField()  # Метки для картинки в формате JSON
+    image_urls = models.ManyToManyField('imageUsage', through='labelImageOrder', related_name='label_images')
+    labels = models.JSONField()
 
     def __str__(self):
-        return f"Label The Picture: {self.id}"
+        return f"Label Images: {self.id}"
+
+class imageUsage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    image_url = models.URLField(unique=True)
+    usage_count = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"Image: {self.id} ({self.image_url})"
+
+class labelImageOrder(models.Model):
+    label_image = models.ForeignKey(labelImages, on_delete=models.CASCADE)
+    image_usage = models.ForeignKey(imageUsage, on_delete=models.CASCADE)
+    order = models.PositiveIntegerField()  # Это поле будет хранить порядок
+
+    class Meta:
+        ordering = ['order']  # Гарантирует порядок изображений
+
+    def __str__(self):
+        return f"Order {self.order} for Image {self.image_usage.id}"
+
+# Quizlet и WordWall
+class EmbeddedTask(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    embed_code = models.TextField()  # Здесь будет храниться HTML-код iframe
+
+    def save(self, *args, **kwargs):
+        allowed_tags = ['iframe']  # Разрешаем только iframe
+        allowed_attrs = {
+            'iframe': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen']
+        }
+
+        self.embed_code = bleach.clean(self.embed_code, tags=allowed_tags, attributes=allowed_attrs)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
 
 # Филворд
 class wordSearch(models.Model):
