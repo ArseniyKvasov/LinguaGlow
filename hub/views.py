@@ -1,17 +1,15 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
-from .ai_calls import text_generation, search_images
-from .models import (course, lesson, section, wordList, task, matchUpTheWords, essay, note, image,
-                     sortIntoColumns, makeASentence, unscramble, fillInTheBlanks, article, test, trueOrFalse,
-                     labelImages, imageUsage, labelImageOrder, EmbeddedTask)
+from .ai_calls import text_generation
+from .models import course, section, lesson, BaseTask, WordList, Image, MatchUpTheWords, Essay, Note, SortIntoColumns, MakeASentence, Unscramble, FillInTheBlanks, Dialogue, Article, Audio, Test, TrueOrFalse, LabelImages, ImageUsage, LabelImageOrder, EmbeddedTask, Classroom
 from django.http import HttpResponseRedirect, JsonResponse
-from django.core.exceptions import ObjectDoesNotExist
+from .forms import ClassroomForm
 from django.db import transaction
 from django.db.models import Max
+from django.db import models
 from django.urls import reverse
 import json
 import re
-from django.db.models import F
 from django.contrib.contenttypes.models import ContentType
 
 
@@ -113,16 +111,15 @@ def add_section(request, lesson_id):
 def section_view(request, section_id):
     selected_section = get_object_or_404(section, id=section_id)
     lesson_obj = get_object_or_404(lesson, id=selected_section.lesson.id)
-    section_list = section.objects.filter(lesson=lesson_obj)
+    section_list = section.objects.filter(lesson=lesson_obj).order_by('order')
 
-    # Получаем все задания для текущей секции
-    tasks = task.objects.filter(section=selected_section).order_by('order')
+    tasks = BaseTask.objects.filter(section=selected_section).order_by('order')
 
     return render(request, 'builder/section_page.html', {
-        'selected_section': selected_section,
-        'section_list': section_list,
-        'lesson': lesson_obj,
         'tasks': tasks,
+        'lesson': lesson_obj,
+        'section_list': section_list,
+        'selected_section': selected_section,
     })
 
 def delete_section_view(request, section_id):
@@ -140,19 +137,6 @@ def delete_section_view(request, section_id):
     return redirect('lesson_page', lesson_id=lesson_id)
 
 
-def classroom_view(request, lesson_id):
-    lesson_obj = get_object_or_404(lesson, id=lesson_id)
-    sections = lesson_obj.sections.all().order_by('order')
-
-    # Получаем все задачи для каждой секции
-    tasks = task.objects.filter(section__in=sections).select_related('content_type').order_by('section', 'order')
-
-    return render(request, 'classroom/classroom.html', {
-        'lesson': lesson_obj,
-        'section_list': sections,
-        'tasks': tasks
-    })
-
 
 """ 
 Функции работы с шаблонами
@@ -162,83 +146,103 @@ def classroom_view(request, lesson_id):
 """
 def get_task_data(request, task_id):
     try:
-        task_instance = get_object_or_404(task, id=task_id)
-        if task_instance.content_type == ContentType.objects.get_for_model(wordList):
+        task_instance = get_object_or_404(BaseTask, id=task_id)
+        content_type = task_instance.content_type
+        content_object = task_instance.content_object
+
+        if content_type.model_class() == WordList:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "words": task_instance.content_object.words,
+                "title": content_object.title,
+                "words": content_object.words,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(matchUpTheWords):
+        elif content_type.model_class() == MatchUpTheWords:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "pairs": task_instance.content_object.pairs,
+                "title": content_object.title,
+                "pairs": content_object.pairs,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(essay):
+        elif content_type.model_class() == Essay:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "conditions": task_instance.content_object.conditions,
+                "title": content_object.title,
+                "conditions": content_object.conditions,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(note):
+        elif content_type.model_class() == Note:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "content": task_instance.content_object.content,
+                "title": content_object.title,
+                "content": content_object.content,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(image):
+        elif content_type.model_class() == Image:
             data = {
                 "id": task_id,
-                "image_url": task_instance.content_object.image_url,
-                "caption": task_instance.content_object.caption,
+                "image_url": content_object.image_url,
+                "caption": content_object.caption,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(sortIntoColumns):
+        elif content_type.model_class() == SortIntoColumns:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "columns": task_instance.content_object.columns,
+                "title": content_object.title,
+                "columns": content_object.columns,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(makeASentence):
+        elif content_type.model_class() == MakeASentence:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "sentences": task_instance.content_object.sentences,
+                "title": content_object.title,
+                "sentences": content_object.sentences,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(unscramble):
+        elif content_type.model_class() == Unscramble:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "words": task_instance.content_object.words,
+                "title": content_object.title,
+                "words": content_object.words,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(fillInTheBlanks):
+        elif content_type.model_class() == FillInTheBlanks:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "text": task_instance.content_object.text,
-                "format": task_instance.content_object.display_format,
+                "title": content_object.title,
+                "text": content_object.text,
+                "display_format": content_object.display_format,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(article):
+        elif content_type.model_class() == Dialogue:
             data = {
                 "id": task_id,
-                "title": task_instance.content_object.title,
-                "text": task_instance.content_object.content,
+                "lines": content_object.lines,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(test):
+        elif content_type.model_class() == Article:
             data = {
                 "id": task_id,
-                "questions": task_instance.content_object.questions,
+                "title": content_object.title,
+                "content": content_object.content,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(trueOrFalse):
+        elif content_type.model_class() == Audio:
             data = {
                 "id": task_id,
-                "questions": task_instance.content_object.statements,
+                "audio_url": content_object.audio_url,
+                "transcript": content_object.transcript,
             }
-        elif task_instance.content_type == ContentType.objects.get_for_model(labelImages):
+        elif content_type.model_class() == Test:
             data = {
                 "id": task_id,
-                "image_urls": [image.image_url for image in task_instance.content_object.image_urls.all()],
-                "labels": task_instance.content_object.labels,
+                "questions": content_object.questions,
+            }
+        elif content_type.model_class() == TrueOrFalse:
+            data = {
+                "id": task_id,
+                "statements": content_object.statements,
+            }
+        elif content_type.model_class() == LabelImages:
+            data = {
+                "id": task_id,
+                "image_urls": [image.image_url for image in content_object.image_urls.all()],
+                "labels": content_object.labels,
+            }
+        elif content_type.model_class() == EmbeddedTask:
+            data = {
+                "id": task_id,
+                "title": content_object.title,
+                "embed_code": content_object.embed_code,
             }
         else:
             return JsonResponse({"error": "Unknown task type"}, status=400)
@@ -251,23 +255,191 @@ def get_task_data(request, task_id):
 @require_http_methods(["DELETE"])
 def delete_task(request, task_id):
     try:
-        task_instance = task.objects.get(id=task_id)
+        task_instance = BaseTask.objects.get(id=task_id)
         task_order = task_instance.order
         if task_instance.content_object:
             task_instance.content_object.delete()
         task_instance.delete()
+
         # Обновляем порядок оставшихся заданий
-        remaining_tasks = task.objects.filter(order__gt=task_order)
+        remaining_tasks = BaseTask.objects.filter(section=task_instance.section, order__gt=task_order)
         for task_elem in remaining_tasks:
             task_elem.order -= 1
             task_elem.save()
+
         return JsonResponse({"success": True})
-    except task.DoesNotExist:
+    except BaseTask.DoesNotExist:
         return JsonResponse({"error": "Задание не найдено"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
+
 def taskFactory(request, section_id):
+    section_instance = get_object_or_404(section, id=section_id)
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        obj_id = data.get('obj_id')
+        task_type = data.get('task_type')
+        payloads = data.get('payloads', {})
+        print(payloads)
+
+        if not task_type or not payloads:
+            return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
+
+        # Словарь для связи типа задачи с моделью
+        task_handlers = {
+            'wordList': WordList,
+            'matchUpTheWords': MatchUpTheWords,
+            'essay': Essay,
+            'note': Note,
+            'image': Image,
+            'sortIntoColumns': SortIntoColumns,
+            'makeASentence': MakeASentence,
+            'unscramble': Unscramble,
+            'fillInTheBlanks': FillInTheBlanks,
+            'dialogue': Dialogue,
+            'article': Article,
+            'audio': Audio,
+            'test': Test,
+            'true_false': TrueOrFalse,
+            'label_images': LabelImages,
+            'embedded_task': EmbeddedTask
+        }
+
+        # Получаем класс модели для задачи
+        model_class = task_handlers.get(task_type)
+        if not model_class:
+            return JsonResponse({'success': False, 'error': 'Invalid task type'}, status=400)
+
+        from django.db import transaction
+
+        if task_type == 'label_images':
+            # Обработка задания "Подписать картинки"
+            print(payloads)
+            labels = [img['label'] for img in payloads]
+            print(labels)
+
+            try:
+                with transaction.atomic():  # Начинаем транзакцию
+                    if obj_id:
+                        # Обновление существующего задания
+                        task_instance = get_object_or_404(BaseTask, id=obj_id)
+                        content_object = task_instance.content_object
+
+                        if not isinstance(content_object, LabelImages):
+                            return JsonResponse({'success': False, 'error': 'Task type mismatch'}, status=400)
+
+                        # Обновляем метки
+                        content_object.labels = labels
+                        content_object.save()
+
+                        # Удаляем старые связи с изображениями
+                        content_object.image_urls.clear()
+
+                        # Создаем новые связи с изображениями
+                        for index, img_data in enumerate(payloads):
+                            image_url = img_data['imageUrl']
+                            image_usage, _ = ImageUsage.objects.get_or_create(image_url=image_url)
+                            LabelImageOrder.objects.create(
+                                label_image=content_object,
+                                image_usage=image_usage,
+                                image_order=index + 1
+                            )
+
+                        content = {
+                            'id': task_instance.id,
+                            'content': {'labels': labels, 'images': payloads}
+                        }
+                    else:
+                        # Создание нового задания
+                        content_object = LabelImages.objects.create(labels=labels)
+
+                        # Создаем связи с изображениями
+                        for index, img_data in enumerate(payloads):
+                            image_url = img_data['imageUrl']
+                            image_usage, _ = ImageUsage.objects.get_or_create(image_url=image_url)
+                            LabelImageOrder.objects.create(
+                                label_image=content_object,
+                                image_usage=image_usage,
+                                image_order=index + 1
+                            )
+
+                        # Определяем порядок нового задания
+                        current_order = \
+                        BaseTask.objects.filter(section=section_instance).aggregate(models.Max('order'))['order__max']
+                        new_order = 1 if current_order is None else current_order + 1
+
+                        # Создаем BaseTask
+                        task_instance = BaseTask.objects.create(
+                            section=section_instance,
+                            content_object=content_object,
+                            content_type=ContentType.objects.get_for_model(LabelImages),
+                            order=new_order
+                        )
+
+                        content = {
+                            'id': task_instance.id,
+                            'content': {'labels': labels, 'images': payloads}
+                        }
+
+                    return JsonResponse({
+                        'success': True,
+                        'task': content
+                    })
+
+            except Exception as e:
+                # В случае ошибки транзакция откатывается автоматически
+                return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+        # Обработка других типов заданий
+        if obj_id:
+            # Обновление существующего задания
+            task_instance = get_object_or_404(BaseTask, id=obj_id)
+            content_object = task_instance.content_object
+
+            if not isinstance(content_object, model_class):
+                return JsonResponse({'success': False, 'error': 'Task type mismatch'}, status=400)
+
+            for key, value in payloads.items():
+                setattr(content_object, key, value)
+            content_object.save()
+
+            content = {
+                'id': task_instance.id,
+                'content': {**payloads}
+            }
+        else:
+            # Создание нового задания
+            content_object = model_class.objects.create(**payloads)
+            current_order = BaseTask.objects.filter(section=section_instance).aggregate(models.Max('order'))['order__max']
+            new_order = 1 if current_order is None else current_order + 1
+            task_instance = BaseTask.objects.create(
+                section=section_instance,
+                content_object=content_object,
+                content_type=ContentType.objects.get_for_model(model_class),
+                order=new_order
+            )
+
+            content = {
+                'id': task_instance.id,
+                'content': {**payloads}
+            }
+
+        return JsonResponse({
+            'success': True,
+            'task': content
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({'success': False, 'error': 'Invalid JSON'}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+def create_or_update_task(request, section_id):
     section_instance = get_object_or_404(section, id=section_id)
     if request.method == 'POST':
         data = json.loads(request.body)
@@ -275,331 +447,77 @@ def taskFactory(request, section_id):
         task_type = data.get('task_type')
         payloads = data.get('payloads', {})
 
-        if not(task_type and payloads):
+        if not (task_type and payloads):
             return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
 
         task_handlers = {
-            'wordList': [wordListStore, ContentType.objects.get_for_model(wordList)],
-            'matchUpTheWords': [matchUpTheWordsStore, ContentType.objects.get_for_model(matchUpTheWords)],
-            'essay': [essayStore, ContentType.objects.get_for_model(essay)],
-            'note': [noteStore, ContentType.objects.get_for_model(note)],
-            'image': [imageStore, ContentType.objects.get_for_model(image)],
-            'sortIntoColumns': [sortIntoColumnsStore, ContentType.objects.get_for_model(sortIntoColumns)],
-            'makeASentence': [makeASentenceStore, ContentType.objects.get_for_model(makeASentence)],
-            'unscramble': [unscrambleStore, ContentType.objects.get_for_model(unscramble)],
-            'fillInTheBlanks': [fillInTheBlanksStore, ContentType.objects.get_for_model(fillInTheBlanks)],
-            'article': [articleStore, ContentType.objects.get_for_model(article)],
-            'test': [testStore, ContentType.objects.get_for_model(test)],
-            'true_false': [trueFalseStore, ContentType.objects.get_for_model(trueOrFalse)],
-            'label_images': [labelImagesStore, ContentType.objects.get_for_model(labelImages)],
-            'interactions': [interactionsStore, ContentType.objects.get_for_model(EmbeddedTask)]
+            'wordList': WordList,
+            'matchUpTheWords': MatchUpTheWords,
+            'essay': Essay,
+            'note': Note,
+            'image': Image,
+            'sortIntoColumns': SortIntoColumns,
+            'makeASentence': MakeASentence,
+            'unscramble': Unscramble,
+            'fillInTheBlanks': FillInTheBlanks,
+            'dialogue': Dialogue,
+            'article': Article,
+            'audio': Audio,
+            'test': Test,
+            'true_false': TrueOrFalse,
+            'label_images': LabelImages,
+            'embedded_task': EmbeddedTask
         }
 
+        model_class = task_handlers.get(task_type)
+        if not model_class:
+            return JsonResponse({'success': False, 'error': 'Invalid task type'}, status=400)
+
         if obj_id:
-            task_instance = get_object_or_404(task, id=obj_id)
-            task_instance.content_object, content = task_handlers[task_type][0](payloads, task_instance)
+            # Обновление существующего задания
+            task_instance = get_object_or_404(BaseTask, id=obj_id)
+            content_object = task_instance.content_object
+
+            # Обновляем content_object
+            if isinstance(content_object, model_class):
+                for key, value in payloads.items():
+                    setattr(content_object, key, value)
+                content_object.save()
+            else:
+                return JsonResponse({'success': False, 'error': 'Task type mismatch'}, status=400)
+
+            content = {
+                'id': task_instance.id,
+                'content': {**payloads}  # Возвращаем обновленные данные
+            }
         else:
-            content_object, content = task_handlers[task_type][0](payloads)
-            task_instance = task.objects.create(
+            # Создание нового задания
+            content_object = model_class.objects.create(**payloads)
+
+            # Определяем порядок нового задания
+            current_order = BaseTask.objects.filter(section=section_instance).aggregate(models.Max('order'))['order__max']
+            new_order = 1 if current_order is None else current_order + 1
+
+            # Создаем BaseTask
+            task_instance = BaseTask.objects.create(
                 section=section_instance,
                 content_object=content_object,
-                content_type=task_handlers[task_type][1],
-                order=task.objects.filter(section=section_instance).count() + 1
+                content_type=ContentType.objects.get_for_model(model_class),
+                order=new_order
             )
+
+            content = {
+                'id': task_instance.id,
+                'content': {**payloads}  # Возвращаем данные content_object
+            }
 
         return JsonResponse({
             'success': True,
-            'task': {
-                'id': task_instance.id,
-                'content': content,
-            }
+            'task': content
         })
 
-def wordListStore(payloads, task_instance=None):
-    if task_instance:
-        word_list_instance = task_instance.content_object
-        word_list_instance.title = payloads['title']
-        word_list_instance.words = payloads['words']
-        word_list_instance.save()
-    else:
-        word_list_instance = wordList.objects.create(
-            title=payloads['title'],
-            words=payloads['words']
-        )
+    return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
 
-    if word_list_instance:
-        return word_list_instance, {'title': word_list_instance.title, 'words': word_list_instance.words}
-    else:
-        return None
-
-def matchUpTheWordsStore(payloads, task_instance=None):
-    if task_instance:
-        match_up_the_words_instance = task_instance.content_object
-        match_up_the_words_instance.title = payloads['title']
-        match_up_the_words_instance.pairs = payloads['pairs']
-        match_up_the_words_instance.save()
-    else:
-        match_up_the_words_instance = matchUpTheWords.objects.create(
-            title=payloads['title'],
-            pairs=payloads['pairs']
-        )
-
-    if match_up_the_words_instance:
-        return match_up_the_words_instance, {'title': match_up_the_words_instance.title, 'pairs': match_up_the_words_instance.pairs}
-    else:
-        return None
-
-def essayStore(payloads, task_instance=None):
-    if task_instance:
-        essay_instance = task_instance.content_object
-        essay_instance.title = payloads["title"]
-        essay_instance.conditions = payloads["conditions"]
-        essay_instance.save()
-    else:
-        essay_instance = essay.objects.create(
-            title=payloads["title"],
-            conditions=payloads["conditions"]
-        )
-
-    if essay_instance:
-        return essay_instance, {'title': essay_instance.title, 'conditions': essay_instance.conditions}
-    else:
-        return None
-
-def noteStore(payloads, task_instance=None):
-    if task_instance:
-        note_instance = task_instance.content_object
-        note_instance.title = payloads["title"]
-        note_instance.content = payloads["content"]
-        note_instance.save()
-    else:
-        note_instance = note.objects.create(
-            title=payloads["title"],
-            content=payloads["content"]
-        )
-
-    if note_instance:
-        return note_instance, {'title': note_instance.title, 'content': note_instance.content}
-    else:
-        return None
-
-def imageStore(payloads, task_instance=None):
-    if task_instance:
-        image_instance = task_instance.content_object
-
-        if len(payloads) > 0:
-            image_instance.image_url = payloads[0]['imageUrl']
-            image_instance.caption = payloads[0].get('caption', '')
-            image_instance.save()
-    else:
-        if len(payloads) > 0:
-            image_instance = image.objects.create(
-                image_url=payloads[0]['imageUrl'],
-                caption=payloads[0].get('caption', '')
-            )
-        else:
-            raise ValueError("No image data provided")
-
-    if image_instance:
-        return image_instance, {
-            'image_url': image_instance.image_url,
-            'caption': image_instance.caption
-        }
-    else:
-        return None
-
-def sortIntoColumnsStore(payloads, task_instance=None):
-    if task_instance:
-        sort_into_columns_instance = task_instance.content_object
-        sort_into_columns_instance.columns = payloads
-        sort_into_columns_instance.save()
-    else:
-        sort_into_columns_instance = sortIntoColumns.objects.create(
-            title="Распределите слова по колонкам",
-            columns=payloads
-        )
-
-    if sort_into_columns_instance:
-        return sort_into_columns_instance, {'title': sort_into_columns_instance.title, 'columns': sort_into_columns_instance.columns}
-    else:
-        return None
-
-def makeASentenceStore(payloads, task_instance=None):
-    if task_instance:
-        make_a_sentence_instance = task_instance.content_object
-        make_a_sentence_instance.sentences = payloads['sentences']
-        make_a_sentence_instance.title = payloads['title']
-        make_a_sentence_instance.save()
-    else:
-        make_a_sentence_instance = makeASentence.objects.create(
-            title=payloads['title'],
-            sentences=payloads['sentences']
-        )
-
-    if make_a_sentence_instance:
-        return make_a_sentence_instance, {'title': make_a_sentence_instance.title, 'sentences': make_a_sentence_instance.sentences}
-    else:
-        return None
-
-def unscrambleStore(payloads, task_instance=None):
-    if task_instance:
-        unscramble_instance = task_instance.content_object
-        unscramble_instance.words = payloads['words']
-        unscramble_instance.title = payloads['title']
-        unscramble_instance.save()
-    else:
-        unscramble_instance = unscramble.objects.create(
-            title=payloads['title'],
-            words=payloads['words'],
-        )
-
-    if unscramble_instance:
-        return unscramble_instance, {'title': unscramble_instance.title, 'words': unscramble_instance.words}
-    else:
-        return None
-
-def fillInTheBlanksStore(payloads, task_instance=None):
-    if task_instance:
-        fill_in_the_blanks_instance = task_instance.content_object
-        fill_in_the_blanks_instance.display_format = payloads['format']
-        fill_in_the_blanks_instance.text = payloads['text']
-        fill_in_the_blanks_instance.title = payloads['title']
-        fill_in_the_blanks_instance.save()
-    else:
-        fill_in_the_blanks_instance = fillInTheBlanks.objects.create(
-            title=payloads['title'],
-            display_format=payloads['format'],
-            text=payloads['text']
-        )
-
-    if fill_in_the_blanks_instance:
-        return fill_in_the_blanks_instance, {'title': fill_in_the_blanks_instance.title, 'text': fill_in_the_blanks_instance.text, 'format': fill_in_the_blanks_instance.display_format}
-    else:
-        return None
-
-def articleStore(payloads, task_instance=None):
-    if task_instance:
-        article_instance = task_instance.content_object
-        article_instance.content = payloads['text']
-        article_instance.title = payloads['title']
-        article_instance.save()
-    else:
-        article_instance = article.objects.create(
-            title=payloads['title'],
-            content=payloads['text']
-        )
-
-    if article_instance:
-        return article_instance, {'title': article_instance.title, 'text': article_instance.content}
-    else:
-        return None
-
-def testStore(payloads, task_instance=None):
-    if task_instance:
-        test_instance = task_instance.content_object
-        test_instance.questions = payloads['questions']
-        test_instance.save()
-    else:
-        test_instance = test.objects.create(
-            questions=payloads['questions']
-        )
-
-    if test_instance:
-        return test_instance, {'questions': test_instance.questions}
-    else:
-        return None
-
-def trueFalseStore(payloads, task_instance=None):
-    if task_instance:
-        true_false_instance = task_instance.content_object
-        true_false_instance.statements = payloads['questions']
-        true_false_instance.save()
-    else:
-        true_false_instance = trueOrFalse.objects.create(
-            statements=payloads['questions']
-        )
-
-    if true_false_instance:
-        return true_false_instance, {'questions': true_false_instance.statements}
-    else:
-        return None
-
-def labelImagesStore(payloads, task_instance=None):
-    if not payloads:
-        return None, {'error': 'Нет изображений или меток'}
-
-    # Если task_instance передан, используем существующее задание
-    if task_instance:
-        label_images_instance = task_instance.content_object
-    else:
-        label_images_instance = None
-
-    labels_payloads = []
-    image_usage_objects = []
-
-    # Сначала создаем все объекты изображений
-    for image_payload in payloads:
-        labels_payloads.append(image_payload['label'])
-
-        # Пытаемся найти изображение по URL или создать новое
-        try:
-            image_usage = imageUsage.objects.select_for_update().get(image_url=image_payload['imageUrl'])
-            image_usage.usage_count = F('usage_count') + 1
-            image_usage.save()
-        except ObjectDoesNotExist:
-            image_usage = imageUsage.objects.create(
-                image_url=image_payload['imageUrl'],
-                usage_count=1
-            )
-        image_usage_objects.append(image_usage)
-
-    # Создаем или обновляем задание Label Images
-    if label_images_instance:
-        # Обнуляем существующие данные (labels и image_urls)
-        label_images_instance.labels = []
-        label_images_instance.image_urls.clear()
-        label_images_instance.save()
-
-    else:
-        # Если задания нет, создаем новое
-        label_images_instance = labelImages.objects.create(labels=labels_payloads)
-
-    # Сохраняем новые данные с правильным порядком
-    with transaction.atomic():
-        # Обновляем метки
-        label_images_instance.labels = labels_payloads
-        label_images_instance.save()
-
-        # Добавляем изображения в Many-to-Many с явным указанием порядка
-        for order, image_usage in enumerate(image_usage_objects):
-            labelImageOrder.objects.create(
-                label_image=label_images_instance,
-                image_usage=image_usage,
-                order=order  # Указываем порядок
-            )
-
-    # Возвращаем результат
-    return label_images_instance, {
-        'image_urls': [img.image_url for img in label_images_instance.image_urls.all()],
-        'labels': label_images_instance.labels
-    }
-
-def interactionsStore(payloads, task_instance=None):
-    if task_instance:
-        interaction_instance = task_instance.content_object
-        interaction_instance.title = payloads["title"]
-        interaction_instance.embed_code = payloads["embed"]
-        interaction_instance.save()
-    else:
-        interaction_instance = EmbeddedTask.objects.create(
-            title=payloads["title"],
-            embed_code=payloads["embed"]
-        )
-
-    if interaction_instance:
-        return interaction_instance, {'title': interaction_instance.title, 'embed': interaction_instance.embed_code}
-    else:
-        return None
 
 
 """ 
@@ -802,3 +720,58 @@ def fillInTheBlanksAI(request, payloads):
     print(formatted_sentences)
 
     return json.dumps(formatted_sentences, ensure_ascii=False)
+
+
+
+def choose_classroom(request, lesson_id):
+    """Страница выбора или создания класса"""
+    lesson_instance = get_object_or_404(lesson, id=lesson_id)
+    classrooms = Classroom.objects.all()  # Можно фильтровать по пользователю
+
+    if request.method == "POST":
+        selected_class_id = request.POST.get("classroom_id")
+        if selected_class_id:
+            classroom = get_object_or_404(Classroom, id=selected_class_id)
+            classroom.lesson = lesson_instance  # Назначаем урок
+            classroom.save()
+            return redirect("classroom_view", classroom_id=classroom.id)
+
+    return render(request, "classroom/choose_classroom.html", {"lesson": lesson_instance, "classrooms": classrooms})
+
+
+def create_classroom(request, lesson_id):
+    """Создание нового класса"""
+    lesson_instance = get_object_or_404(lesson, id=lesson_id)
+
+    if request.method == "POST":
+        form = ClassroomForm(request.POST)
+        if form.is_valid():
+            new_classroom = form.save()
+            new_classroom.lesson = lesson_instance
+            new_classroom.save()
+            return redirect("classroom_view", classroom_id=new_classroom.id)
+    else:
+        form = ClassroomForm()
+
+    return render(request, "classroom/create_classroom.html", {"form": form, "lesson": lesson_instance})
+
+def classroom_view(request, classroom_id):
+    classroom_obj = get_object_or_404(Classroom, id=classroom_id)
+    lesson_obj = classroom_obj.lesson
+    sections = lesson_obj.sections.all().order_by('order')
+
+    # Получаем все задачи и группируем их по секциям
+    tasks = BaseTask.objects.filter(section__in=sections).select_related('content_type').order_by('section', 'order')
+
+    section_tasks = []
+    for section in sections:
+        section_tasks.append({
+            'section_title': section.name,
+            'tasks': [task for task in tasks if task.section_id == section.id]
+        })
+
+    return render(request, 'classroom/classroom.html', {
+        'lesson': lesson_obj,
+        'section_list': sections,
+        'section_tasks': section_tasks
+    })

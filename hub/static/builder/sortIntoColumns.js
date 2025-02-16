@@ -92,7 +92,7 @@ export function init(taskData = null, selectedTasksData = null) {
                 body: JSON.stringify({
                     ...(taskData ? { obj_id: taskData.id } : {}),
                     task_type: 'sortIntoColumns',
-                    payloads: payloads,
+                    payloads: {'columns': payloads},
                 }),
             });
 

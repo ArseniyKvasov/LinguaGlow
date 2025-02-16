@@ -1,0 +1,5 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.caption }}</h3>
+    <img src="{{ task.content_object.image_url }}" alt="{{ task.content_object.caption }}" class="img-fluid">
+</div>

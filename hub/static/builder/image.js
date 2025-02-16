@@ -247,7 +247,7 @@ export function init(taskData = null, selectedTasksData = null) {
 
                 return {
                     caption,
-                    imageUrl: imageUrl
+                    image_url: imageUrl
                 };
             },
             setData: (data) => {
@@ -297,10 +297,9 @@ export function init(taskData = null, selectedTasksData = null) {
     });
 
     saveAllButton.addEventListener('click', async () => {
-        console.log(blocksData);
         const dataToSave = blocksData
             .map(block => block.getData())
-            .filter(item => item.imageUrl);
+            .filter(item => item.image_url);
 
         if (dataToSave.length === 0) {
             alert('Добавьте хотя бы одну картинку!');
@@ -331,7 +330,7 @@ export function init(taskData = null, selectedTasksData = null) {
                     body: JSON.stringify({
                         ...(taskData ? { obj_id: taskData.id } : {}),
                         task_type: 'image',
-                        payloads: [payload]
+                        payloads: payload
                     }),
                 });
 

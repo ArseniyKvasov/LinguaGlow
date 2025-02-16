@@ -18,7 +18,7 @@ export function init(taskData = null, selectedTasksData = null) {
     // Заполняем данные, если редактируем задание
     if (taskData) {
         titleInput.value = taskData.title || '';
-        embedInput.value = taskData.embed || '';
+        embedInput.value = taskData.embed_code || '';
     }
 
     // Сохранение задания
@@ -45,8 +45,8 @@ export function init(taskData = null, selectedTasksData = null) {
                 },
                 body: JSON.stringify({
                     ...(taskData ? { obj_id: taskData.id } : {}),
-                    task_type: 'interactions',
-                    payloads: { title: title, embed: embedCode },
+                    task_type: 'embedded_task',
+                    payloads: { title: title, embed_code: embedCode },
                 }),
             });
 
@@ -83,7 +83,7 @@ export function init(taskData = null, selectedTasksData = null) {
             <div class="task-item" id="task-${task.id}">
                 <div class="interaction-item">
                     <h3>${task.content.title}</h3>
-                    <div class="embed-container">${task.content.embed}</div>
+                    <div class="embed-container">${task.content.embed_code}</div>
                     <button class="btn btn-primary edit-task-button" data-task-id="${task.id}" data-task-type="interactions">Редактировать</button>
                     <button class="btn btn-danger delete-task-button" data-task-id="${task.id}">Удалить</button>
                 </div>

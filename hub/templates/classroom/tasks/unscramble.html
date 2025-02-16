@@ -1,0 +1,17 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    {% for item in task.content_object.words %}
+    <div class="word-block">
+        <div class="puzzle-container">
+            {% for letter in item.shuffled_word %}
+            <div class="puzzle-piece">{{ letter }}</div>
+            {% endfor %}
+        </div>
+        <p class="correct-word">(Правильное слово: <strong>{{ item.word }}</strong>)</p>
+        {% if item.hint %}
+        <p class="hint-text"><em>Подсказка: {{ item.hint }}</em></p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>

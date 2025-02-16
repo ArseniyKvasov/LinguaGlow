@@ -1,0 +1,9 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    {% for sentence in task.content_object.sentences %}
+    <div class="sentence-block">
+        <p>{{ sentence.shuffled }} <strong>({{ sentence.correct }})</strong></p>
+    </div>
+    {% endfor %}
+</div>

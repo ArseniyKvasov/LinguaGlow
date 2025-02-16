@@ -1,0 +1,15 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    <!-- Блок с пропущенными словами, если формат с листом -->
+    {% if task.content_object.display_format == "list" %}
+    <div class="missing-words-list">
+        <h4>Пропущенные слова:</h4>
+        <ul id="answer-list-{{ task.id }}">
+            <!-- Список ответов будет добавлен через JS -->
+        </ul>
+    </div>
+    {% endif %}
+    <!-- Текст с пропусками -->
+    <p id="task-text-{{ task.id }}">{{ task.content_object.text }}</p>
+</div>

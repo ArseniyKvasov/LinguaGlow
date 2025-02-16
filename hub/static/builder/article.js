@@ -58,7 +58,7 @@ export function init(taskData = null, selectedTasksData = null) {
                     task_type: 'article',
                     payloads: {
                         title: title,
-                        text: DOMPurify.sanitize(content)
+                        content: DOMPurify.sanitize(content)
                     }
                 }),
             });
@@ -179,7 +179,7 @@ function createArticleHtml(task) {
             <label for="task-{{ task.id }}"></label>
             <div class="article-item">
                 <h3>${convertMarkdownToHTML(task.content.title)}</h3>
-                <div class="article-content">${DOMPurify.sanitize(task.content.text)}</div>
+                <div class="article-content">${DOMPurify.sanitize(task.content.content)}</div>
                 <button class="btn btn-primary edit-task-button" data-task-id="${task.id}" data-task-type="article">Редактировать</button>
                 <button class="btn btn-danger delete-task-button" data-task-id="${task.id}">Удалить</button>
             </div>

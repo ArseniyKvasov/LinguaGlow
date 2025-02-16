@@ -67,7 +67,7 @@ export function init(taskData = null, selectedTasksData = null) {
     }
 
     if (taskData) {
-        taskData.questions.forEach(q => createQuestionBlock(q));
+        taskData.statements.forEach(q => createQuestionBlock(q));
     } else {
         createQuestionBlock();
     }
@@ -77,7 +77,7 @@ export function init(taskData = null, selectedTasksData = null) {
     };
 
     saveTrueFalseButton.onclick = async () => {
-        const questions = [];
+        const statements = [];
         document.querySelectorAll('.question-block').forEach(qBlock => {
             const question = qBlock.querySelector('input[type=text]').value.trim();
             if (!question) return;
@@ -90,10 +90,10 @@ export function init(taskData = null, selectedTasksData = null) {
                 return;
             }
 
-            questions.push({ question: DOMPurify.sanitize(question), trueAnswer, falseAnswer });
+            statements.push({ question: DOMPurify.sanitize(question), trueAnswer, falseAnswer });
         });
 
-        if (questions.length === 0) {
+        if (statements.length === 0) {
             alert('Добавьте хотя бы один вопрос');
             return;
         }
@@ -114,7 +114,7 @@ export function init(taskData = null, selectedTasksData = null) {
                 body: JSON.stringify({
                     ...(taskData ? { obj_id: taskData.id } : {}),
                     task_type: 'true_false',
-                    payloads: { questions }
+                    payloads: { statements }
                 }),
             });
 
@@ -149,9 +149,9 @@ function createTrueFalseHtml(task) {
         <div class="task-item" id="task-${task.id}">
             <div class="true-false-item">
                 <div class="questions-list">
-                    ${task.content.questions && task.content.questions.length > 0
+                    ${task.content.statements && task.content.statements.length > 0
                         ? `<ul class="list-group">
-                            ${task.content.questions.map(question => `
+                            ${task.content.statements.map(question => `
                                 <li class="list-group-item">
                                     <strong>${escapeHtml(question.question)}</strong>
                                     <p class="mt-2">${question.trueAnswer ? 'Правда' : 'Ложь'}</p>

@@ -16,7 +16,9 @@ urlpatterns = [
     path('api/tasks/<uuid:task_id>/', views.get_task_data, name='get_task_data'),
     path('api/tasks/<uuid:task_id>/delete/', views.delete_task, name='delete_task'),
 
-    path('classroom/<uuid:lesson_id>/', views.classroom_view, name='classroom_view'),
+    path('classroom/<uuid:classroom_id>/', views.classroom_view, name='classroom_view'),
+    path("choose-classroom/<uuid:lesson_id>/", views.choose_classroom, name="choose_classroom"),
+    path("create-classroom/<uuid:lesson_id>/", views.create_classroom, name="create_classroom"),
 
     path('search-images/', ai_calls.search_images, name='search_images'),
     path('generate-task/', views.jsCall, name='task_generation'),

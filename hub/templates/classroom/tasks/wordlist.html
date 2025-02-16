@@ -1,0 +1,25 @@
+{% load static %}
+<div class="task-item card mb-4 border-0 shadow-sm" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
+        <input type="checkbox" class="form-check-input me-3" data-task-id="{{ task.id }}">
+        <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
+    </div>
+
+    <div class="card-body bg-light bg-opacity-25">
+        <div class="row g-3">
+            {% for word, translation in task.content_object.words.items %}
+            <div class="col-12 col-md-6">
+                <div class="card border-success border-opacity-25 h-100">
+                    <div class="card-body py-3">
+                        <div class="d-flex justify-content-between align-items-center my-auto">
+                            <span class="fw-bold text-success text-start">{{ word }}</span>
+                            <i class="bi bi-arrow-right-short fs-4 text-muted px-2"></i>
+                            <span class="fw-bold text-success text-end">{{ translation }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

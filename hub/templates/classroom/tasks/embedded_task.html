@@ -1,0 +1,7 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    <div>{{ task.content_object.embed_code|safe }}</div>
+    <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="interactions">Редактировать</button>
+    <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
+</div>

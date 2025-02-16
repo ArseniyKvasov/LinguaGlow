@@ -1,0 +1,48 @@
+{% load static %}
+
+<div class="task-item card mb-4 border-0 shadow-sm" id="task-{{ task.id }}" data-task-type="match-words">
+    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
+        <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
+    </div>
+
+    <div class="card-body bg-light bg-opacity-25">
+        <div class="container">
+            <div class="row g-3">
+                <div class="col-6 word-column d-flex flex-column h-100">
+                    {% for word in task.content_object.pairs.keys %}
+                    <button class="match-btn btn btn-outline-success fs-6 fw-bold word-wrap w-100" data-word="{{ word }}">
+                        {{ word }}
+                    </button>
+                    {% endfor %}
+                </div>
+                <div class="col-6 translation-column d-flex flex-column h-100">
+                    {% for translation in task.content_object.pairs.values %}
+                    <button class="match-btn btn btn-outline-success fs-6 fw-bold word-wrap w-100" data-translation="{{ translation }}">
+                        {{ translation }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    function shuffleElements(containerSelector) {
+        let container = document.querySelector(containerSelector);
+        if (!container) return;
+
+        let elements = Array.from(container.children);
+        // Перемешиваем массив элементов
+        elements = elements.sort(() => Math.random() - 0.5);
+
+        // Перезаполняем контейнер новыми отсортированными элементами
+        elements.forEach(el => container.appendChild(el));
+    }
+
+    shuffleElements(".word-column");  // Перемешиваем слова
+    shuffleElements(".translation-column");  // Перемешиваем переводы
+});
+</script>
+

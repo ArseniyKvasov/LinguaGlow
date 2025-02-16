@@ -1,0 +1,14 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    {% for column_title, words in task.content_object.columns.items %}
+    <div class="column">
+        <h4>{{ column_title }}</h4>
+        <ul>
+            {% for word in words %}
+            <li>{{ word }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>

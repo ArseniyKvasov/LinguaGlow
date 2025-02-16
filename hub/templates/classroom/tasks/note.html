@@ -1,0 +1,7 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
+    <label for="task-{{ task.id }}"></label>
+    <h3>{{ task.content_object.title }}</h3>
+    <p class="noteContent">{{ task.content_object.content }}</p>
+</div>

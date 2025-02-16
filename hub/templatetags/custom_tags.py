@@ -1,5 +1,5 @@
 from django import template
-from hub.models import course, lesson, section
+from hub.models import course, lesson, section, Classroom
 
 register = template.Library()
 
@@ -10,5 +10,6 @@ def course_list(user):
     :param courses: QuerySet с курсами.
     """
     courses = course.objects.filter(user=user)
-    return {'courses': courses, 'user': user}
+    classrooms = Classroom.objects.all()
+    return {'courses': courses, 'user': user, 'classrooms': classrooms}
 

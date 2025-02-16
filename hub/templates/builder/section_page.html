@@ -2,7 +2,6 @@
 {% load static %}
 {% load custom_filters %}
 {% block content %}
-
 <style>
     /* Общие стили для форм */
     #wordListFormContainer {
@@ -244,7 +243,7 @@
         z-index: 1;
         white-space: nowrap;
     }
-        .article-editor {
+    article-editor {
         border: 1px solid #ccc;
         padding: 10px;
         min-height: 150px;
@@ -254,8 +253,7 @@
     #articleToolbar {
         margin-bottom: 10px;
     }
-
-    .format-btn {
+     .format-btn {
         background: #f5f5f5;
         border: none;
         padding: 5px 10px;
@@ -299,6 +297,7 @@
         align-items: center;
         justify-content: center;
         background-color: #f8f9fa; /* Добавляем фон для контейнера */
+
     }
 
     .image-preview-label-images img {
@@ -363,233 +362,21 @@
     }
 
     .noteContent {
-        white-space: pre-wrap;
+      white-space: pre-wrap;
     }
 </style>
-
 <hr>
-
-<button id="toggleDragButton" class="btn btn-secondary" style="position: fixed; top: 10px; right: 10px;">
-    <i class="bi bi-arrows-move"></i> Перетаскивание
-</button>
+<a href="{% url 'choose_classroom' lesson.id %}">Добавить в класс</a>
 
 <div id="loadedTasks" class="col-12 col-md-8 col-lg-6 text-center mx-auto">
     {% for task in tasks %}
-        <div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-            {% if task.content_type.model == "wordlist" %}
-                <div class="word-list-item">
-                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
-                    <label for="task-{{ task.id }}"></label>
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for word, translation in task.content_object.words.items %}
-                        <div class="row g-3">
-                            <div class="col-6 card shadow p-2 text-center">{{ word }}</div>
-                            <div class="col-6 card shadow p-2 text-center">{{ translation }}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "matchupthewords" %}
-                <div class="match-up-the-words-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for word, translation in task.content_object.pairs.items %}
-                        <div class="row g-3">
-                            <div class="col-6 card shadow p-2 text-center bg-warning">{{ word }}</div>
-                            <div class="col-6 card shadow p-2 text-center bg-warning">{{ translation }}</div>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "essay" %}
-                <div class="essay-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for conditions, score in task.content_object.conditions.items %}
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" value="" id="conditional-{{ forloop.counter }}">
-                            <label class="form-check-label" for="conditional-{{ forloop.counter }}">
-                                {{ conditions }} <span class="text-muted">({{ score }} баллов)</span>
-                            </label>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "note" %}
-                <div class="note-item">
-                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
-                    <label for="task-{{ task.id }}"></label>
-                    <h3>{{ task.content_object.title }}</h3>
-                    <p class="noteContent">{{ task.content_object.content }}</p>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "image" %}
-                <div class="image-container">
-                    <div class="image-item">
-                        <h3>{{ task.content_object.caption }}</h3>
-                        <img src="{{ task.content_object.image_url }}" alt="{{ task.content_object.caption }}" class="img-fluid">
-                    </div>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "sortintocolumns" %}
-                <div class="sort-into-columns-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for column_title, words in task.content_object.columns.items %}
-                        <div class="column">
-                            <h4>{{ column_title }}</h4>
-                            <ul>
-                                {% for word in words %}
-                                    <li>{{ word }}</li>
-                                {% endfor %}
-                            </ul>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "makeasentence" %}
-                <div class="sentence-order-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for sentence in task.content_object.sentences %}
-                        <div class="sentence-block">
-                            <p>{{ sentence.shuffled }} <strong>({{ sentence.correct }})</strong></p>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "unscramble" %}
-                <div class="unscramble-task-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    {% for item in task.content_object.words %}
-                        <div class="word-block">
-                            <div class="puzzle-container">
-                                {% for letter in item.shuffled_word %}
-                                    <div class="puzzle-piece">{{ letter }}</div>
-                                {% endfor %}
-                            </div>
-                            <p class="correct-word">(Правильное слово: <strong>{{ item.word }}</strong>)</p>
-                            {% if item.hint %}
-                                <p class="hint-text"><em>Подсказка: {{ item.hint }}</em></p>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "fillintheblanks" %}
-                <div class="fill-in-the-blanks-item">
-                    <h3>{{ task.content_object.title }}</h3>
-
-                    <!-- Блок с пропущенными словами, если формат с листом -->
-                    {% if task.content_object.display_format == "list" %}
-                        <div class="missing-words-list">
-                            <h4>Пропущенные слова:</h4>
-                            <ul id="answer-list-{{ task.id }}">
-                                <!-- Список ответов будет добавлен через JS -->
-                            </ul>
-                        </div>
-                    {% endif %}
-
-                    <!-- Текст с пропусками -->
-                    <p id="task-text-{{ task.id }}">
-                        {{ task.content_object.text }}
-                    </p>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "article" %}
-                <div class="article-item">
-                    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
-                    <label for="task-{{ task.id }}"></label>
-                    <h3 data-sanitize="true">{{ task.content_object.title|escape }}</h3>
-                    <div class="article-content">
-                      <div data-sanitize="true">{{ task.content_object.content|safe }}</div>
-                    </div>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "test" %}
-                <div class="test-item">
-                    {% if task.content_object.time %}
-                        Time: <h3 class="mb-3">{{ task.content_object.time }}</h3>
-                    {% endif %}
-
-                    <div class="questions-list">
-                        {% if task.content_object.questions %}
-                            <ul class="list-group">
-                                {% for question in task.content_object.questions %}
-                                    <li class="list-group-item">
-                                        <strong>{{ question.question }}</strong>
-                                        <ul class="list-group mt-2">
-                                            {% for answer in question.answers %}
-                                                <li class="list-group-item{% if answer.correct %} list-group-item-success{% else %} list-group-item-secondary{% endif %}">
-                                                    {{ answer.answer }}
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <p>Вопросы не заданы.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "trueorfalse" %}
-                <div class="true-false-item">
-                    <div class="questions-list">
-                        {% if task.content_object.statements %}
-                            <ul class="list-group">
-                                {% for question in task.content_object.statements %}
-                                    <li class="list-group-item">
-                                        <strong>{{ question.question }}</strong>
-                                        <p class="mt-2">{{ question.trueAnswer | yesno:"Правда,Ложь" }}</p>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        {% else %}
-                            <p>Вопросы не заданы.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "labelimages" %}
-                <div class="label-images-item">
-                    <div class="questions-list">
-                        {% if task.content_object.image_urls and task.content_object.labels %}
-                            <div class="row">
-                                {% for image, label in task.content_object.image_urls.all|zip_lists:task.content_object.labels %}
-                                    <div class="col-xxl-1 col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-                                        <div class="card h-100">
-                                            <div class="image-preview-label-images">
-                                                <img src="{{ image.image_url }}" alt="{{ label }}" class="card-img-top rounded" style="object-fit: cover;">
-                                            </div>
-                                            <div class="card-body">
-                                                <h5 class="card-title text-center">{{ label }}</h5>
-                                            </div>
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% else %}
-                            <p>Изображения не заданы.</p>
-                        {% endif %}
-                    </div>
-                </div>
-            {% endif %}
-            {% if task.content_type.model == "embeddedtask" %}
-                <div class="interaction-item">
-                    <h3>{{ task.content_object.title }}</h3>
-                    <div>{{ task.content_object.embed_code|safe }}</div>
-                    <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="interactions">Редактировать</button>
-                    <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
-                </div>
-            {% endif %}
-            <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="{{ task.content_type.model }}">Редактировать</button>
-            <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
-        </div>
+        {% with task.content_type.model as model %}
+            {% include 'classroom/tasks/'|add:model|add:'.html' with task=task %}
+        {% endwith %}
+        <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="{{ task.content_type.model }}">Редактировать</button>
+        <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
     {% endfor %}
 </div>
-
-
-
-
-
 
 <!-- Кнопка для открытия блока -->
 <button id="addActivityButton" type="button" class="btn btn-primary mb-3">
@@ -645,12 +432,9 @@
 
 <div id="sectionId" style="display: none;">{{ selected_section.id }}</div>
 
-
-
 <div id="wordListFormContainer" style="display: none;" class="centeredElement">
     <div class="mb-3">
         <input type="text" id="wordListTitleInput" class="form-control mb-3" placeholder="Введите заголовок">
-
         <div id="wordListContainer"></div>
         <button type="button" id="addPairWordListButton" class="btn btn-primary">Добавить пару</button>
         <button type="button" id="resetWordListButton" class="btn btn-danger">Обнулить</button>
@@ -665,7 +449,6 @@
             <input class="form-control flex-grow-1 ai-input" placeholder="Введите тему">
             <input type="number" placeholder="Любое" class="form-control ai-quantity-input" min="1" style="max-width: 120px;">
         </div>
-
         <div class="form-check form-check-inline">
             <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-first" value="first" checked>
             <label class="form-check-label" for="option-first">Сначала</label>
@@ -674,7 +457,6 @@
             <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-selected" value="selected">
             <label class="form-check-label" for="option-selected">На основе выбранного задания</label>
         </div>
-
         <button class="add-additional-wordlist-requirements-button btn btn-outline-warning">Добавить требование</button>
         <input class="additional-wordlist-requirements form-control" style="display: none;" placeholder="Введи дополнительное требование.">
         <button type="button" id="generateAIWordListButton" class="btn btn-primary">Сгенерировать</button>
@@ -699,9 +481,7 @@
 <div id="essayFormContainer" style="display: none;" class="centeredElement">
     <div class="mb-3">
         <input type="text" id="essayTaskInput" class="form-control" placeholder="Введите задание">
-
         <div id="conditionsContainer" class="my-3"></div>
-
         <button type="button" id="addConditionButton" class="btn btn-primary">Добавить условие</button>
         <button type="button" id="resetConditionsButton" class="btn btn-danger">Обнулить условия</button>
         <button type="button" id="AIEssayButton" class="btn btn-primary">Сгенерировать AI</button>
@@ -713,7 +493,6 @@
             <input type="range" class="form-control" min="10" max="400" step="10" style="max-width: 120px;">
             <span class="range-value"></span>
         </div>
-
         <div class="form-check form-check-inline">
             <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-essay-first" value="first" checked>
             <label class="form-check-label" for="option-essay-first">Сначала</label>
@@ -722,7 +501,6 @@
             <input class="form-check-input ai-generation-option" type="radio" name="ai-generation-option" id="option-essay-selected" value="selected">
             <label class="form-check-label" for="option-essay-selected">На основе выбранного задания</label>
         </div>
-
         <button class="add-additional-essay-requirements-button btn btn-outline-warning">Добавить требование</button>
         <input class="additional-essay-requirements form-control" style="display: none;" placeholder="Введи дополнительное требование.">
         <button type="button" id="generateAIEssayButton" class="btn btn-primary">Сгенерировать</button>
@@ -981,12 +759,11 @@
 
 
 
-<script src="{% static 'builder/display.js' %}"></script>
+<script src="{% static 'classroom/display.js' %}"></script>
 <script src="{% static 'builder/main.js' %}"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
 <script src="https://unpkg.com/htmx.org"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<!--<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>-->
 
 
 

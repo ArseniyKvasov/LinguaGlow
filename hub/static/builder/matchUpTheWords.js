@@ -236,34 +236,41 @@ export function init(taskData = null, selectedTasksData = null) {
     }
 
     function getWordListTask() {
-        const taskItems = document.querySelectorAll('#loadedTasks .task-item');
+        const taskItems = document.querySelectorAll('.task-item');
 
         for (let i = taskItems.length - 1; i >= 0; i--) {
             const taskItem = taskItems[i];
-            const wordListContent = taskItem.querySelector('.word-list-item');
 
-            if (wordListContent) {
-                const title = wordListContent.querySelector('h3').textContent;
-                const words = {};
+            // Проверяем, что это задание типа "wordlist"
+            if (taskItem.dataset.taskType === 'wordlist') {
+                const wordListContent = taskItem.querySelector('.card-body');
 
-                const wordRows = wordListContent.querySelectorAll('.row.g-3');
-                wordRows.forEach(row => {
-                    const word = row.querySelector('.col-6:nth-child(1)').textContent.trim();
-                    const translation = row.querySelector('.col-6:nth-child(2)').textContent.trim();
-                    if (word && translation) {
-                        words[word] = translation;
-                    }
-                });
+                if (wordListContent) {
+                    const title = taskItem.querySelector('h3').textContent.trim(); // Заголовок задачи
+                    const words = {};
 
-                return {
-                    title: title,
-                    words: words
-                };
+                    // Ищем все карточки с парами слов и переводов
+                    const wordCards = wordListContent.querySelectorAll('.col-12.col-md-6');
+                    wordCards.forEach(card => {
+                        const word = card.querySelector('.text-start').textContent.trim();
+                        const translation = card.querySelector('.text-end').textContent.trim();
+
+                        if (word && translation) {
+                            words[word] = translation; // Добавляем пару в объект
+                        }
+                    });
+
+                    return {
+                        title: title,
+                        words: words
+                    };
+                }
             }
         }
 
-        return null;
+        return null; // Если не найдено, возвращаем null
     }
+
 
     function fillInWordsByAI() {
         const wordListTask = getWordListTask();

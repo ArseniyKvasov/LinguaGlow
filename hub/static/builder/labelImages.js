@@ -299,85 +299,60 @@ export function init(taskData = null, selectedTasksData = null) {
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error(`Ошибка при сохранении изображения: ${response.statusText}`);
-            }
-
             const result = await response.json();
-            const requests = [];
-            try {
-                // Генерация HTML для новых изображений
-                const newTaskHtml = result.task.content.image_urls.map((imageUrl, index) => {
-                    const label = result.task.content.labels[index] || '';
-                    return `
-                        <div class="col-xxl-1 col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-                            <div class="card h-100">
-                                <div class="image-preview-label-images">
-                                    <img src="${imageUrl}" alt="${label}" class="card-img-top rounded" style="object-fit: cover;">
-                                </div>
-                                <div class="card-body">
-                                    <h5 class="card-title text-center">${label}</h5>
-                                </div>
-                            </div>
+
+            if (!result.success) {
+                throw new Error(result.error || 'Ошибка сохранения');
+            }
+
+            // Обновление DOM
+            const newTaskHtml = result.task.content.images.map((img, index) => `
+                <div class="col-xxl-1 col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+                    <div class="card h-100">
+                        <img src="${img.imageUrl}" class="card-img-top" alt="${img.label}">
+                        <div class="card-body">
+                            <h5 class="card-title text-center">${img.label}</h5>
                         </div>
-                    `;
-                }).join('');
-
-                // Добавляем кнопки "Редактировать" и "Удалить" внизу всех карточек
-                const buttonsHtml = `
-                    <div class="mt-4">
-                        <button class="btn btn-primary edit-task-button" data-task-id="${result.task.id}" data-task-type="labelImages">Редактировать</button>
-                        <button class="btn btn-danger delete-task-button" data-task-id="${result.task.id}">Удалить</button>
                     </div>
-                `;
+                </div>
+            `).join('');
 
-                // Добавление в DOM
-                if (!taskData) {
-                    const loadedTasks = document.getElementById('loadedTasks');
-                    loadedTasks.insertAdjacentHTML('beforeend', `<div class="row">${newTaskHtml}${buttonsHtml}</div>`);
-                } else {
-                    const elementToUpdate = document.getElementById(`task-${result.task.id}`);
-                    elementToUpdate.innerHTML = `<div class="row">${newTaskHtml}${buttonsHtml}</div>`;
-                }
+            const buttonsHtml = `
+                <div class="mt-4">
+                    <button class="btn btn-primary edit-task-button"
+                        data-task-id="${result.task.id}"
+                        data-task-type="label_images">
+                        Редактировать
+                    </button>
+                    <button class="btn btn-danger delete-task-button"
+                        data-task-id="${result.task.id}">
+                        Удалить
+                    </button>
+                </div>
+            `;
 
-                // Прокрутка к новому элементу
-                const newTaskElements = document.querySelectorAll('.col-xxl-3, .col-lg-4, .col-md-6, .col-sm-6, .col-12');
-                if (newTaskElements.length > 0) {
-                    newTaskElements[newTaskElements.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-
-            } catch (error) {
-                console.error('Ошибка при сохранении изображения:', error);
-                requests.push({ success: false, error: error.message });
-            }
-
-            // Очистка блоков после успешного сохранения
-            if (!taskData) {
-                document.getElementById('overlay').style.display = 'none';
-                const addActivityButton = document.getElementById('addActivityButton');
-                const activityCreationBlock = document.getElementById('activityCreationBlock');
-                addActivityButton.style.display = 'block';
-                activityCreationBlock.style.display = 'none';
-            }
-
-            const failedSaves = requests.filter(result => !result.success);
-            if (failedSaves.length > 0) {
-                alert(`Не удалось сохранить ${failedSaves.length} изображений.`);
+            const container = document.getElementById('loadedTasks');
+            if (taskData) {
+                const existing = container.querySelector(`#task-${result.task.id}`);
+                if (existing) existing.innerHTML = newTaskHtml + buttonsHtml;
             } else {
-                document.getElementById('overlay').style.display = 'none';
-                const addActivityButton = document.getElementById('addActivityButton');
-                const activityCreationBlock = document.getElementById('activityCreationBlock');
-                addActivityButton.style.display = 'block';
-                activityCreationBlock.style.display = 'none';
+                container.insertAdjacentHTML('beforeend',
+                    `<div id="task-${result.task.id}" class="row">${newTaskHtml}${buttonsHtml}</div>`
+                );
+            }
 
-                // Очистка блоков после успешного сохранения
+            // Очистка только при успешном создании новой задачи
+            if (!taskData) {
                 labelImagesBlocksContainer.innerHTML = '';
                 labelImagesBlocksData.length = 0;
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('addActivityButton').style.display = 'block';
+                document.getElementById('activityCreationBlock').style.display = 'none';
             }
 
         } catch (error) {
             console.error('Ошибка сохранения:', error);
-            alert('Произошла ошибка при сохранении изображений.');
+            alert(error.message || 'Произошла ошибка при сохранении');
         }
     });
 }

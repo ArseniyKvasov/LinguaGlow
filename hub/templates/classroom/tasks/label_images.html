@@ -1,0 +1,25 @@
+{% load static %}
+{% load custom_filters %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    <div class="questions-list">
+        {% if task.content_object.image_urls and task.content_object.labels %}
+        <div class="row">
+            {% for image, label in task.content_object.image_urls.all|zip_lists:task.content_object.labels %}
+            <div class="col-xxl-1 col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+                <div class="card h-100">
+                    <div class="image-preview-label-images">
+                        <img src="{{ image.image_url }}" alt="{{ label }}" class="card-img-top rounded" style="object-fit: cover;">
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title text-center">{{ label }}</h5>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Изображения не заданы.</p>
+        {% endif %}
+    </div>
+</div>

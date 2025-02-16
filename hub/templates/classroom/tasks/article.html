@@ -1,0 +1,9 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
+    <label for="task-{{ task.id }}"></label>
+    <h3 data-sanitize="true">{{ task.content_object.title|escape }}</h3>
+    <div class="article-content">
+        <div data-sanitize="true">{{ task.content_object.content|safe }}</div>
+    </div>
+</div>

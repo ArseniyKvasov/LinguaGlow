@@ -1,0 +1,27 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    {% if task.content_object.time %}
+    <h3 class="mb-3">{{ task.content_object.time }}</h3>
+    {% endif %}
+    <div class="questions-list">
+        {% if task.content_object.questions %}
+        <ul class="list-group">
+            {% for question in task.content_object.questions %}
+            <li class="list-group-item">
+                <strong>{{ question.question }}</strong>
+                <ul class="list-group mt-2">
+                    {% for answer in question.answers %}
+                    <li class="list-group-item{% if answer.correct %} list-group-item-success{% else %} list-group-item-secondary{% endif %}">
+                        {{ answer.answer }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Вопросы не заданы.</p>
+        {% endif %}
+    </div>
+</div>

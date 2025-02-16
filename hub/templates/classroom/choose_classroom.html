@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+
+<h2>Выберите класс для урока "{{ lesson.name }}"</h2>
+
+<form method="POST">
+    {% csrf_token %}
+    <ul>
+        {% for classroom in classrooms %}
+            <li>
+                <label>
+                    <input type="radio" name="classroom_id" value="{{ classroom.id }}">
+                    {{ classroom.id }}
+                </label>
+            </li>
+        {% endfor %}
+    </ul>
+    <button type="submit">Выбрать класс</button>
+</form>
+
+<a href="{% url 'create_classroom' lesson.id %}">Создать новый класс</a>
+</body>
+</html>

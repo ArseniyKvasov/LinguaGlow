@@ -217,6 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (taskItem) {
                         taskItem.remove();
                     }
+                    const actionButtons = document.querySelectorAll('#button').dataset.taskId = taskId;
+                    actionButtons.forEach(button => {
+                        button.remove();
+                    });
                 } else {
                     alert('Ошибка при удалении задания.');
                 }
@@ -286,7 +290,7 @@ async function uploadSelectedTasksData() {
             case 'note':
                 return `Заметка ${taskData.title}\n${taskData.content}`;
             case 'article':
-                return `Статья ${taskData.title}\n${taskData.text}`;
+                return `Статья ${taskData.title}\n${taskData.content}`;
             default:
                 return '';
         }

@@ -1,0 +1,46 @@
+.task-item {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 245, 245, 0.9));
+    border-radius: 15px;
+    transition: transform 0.2s;
+}
+
+.task-item:hover {
+    transform: translateY(-3px);
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(0, 123, 255, 0.1);
+}
+
+.word-column, .translation-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; /* Пространство между строками */
+}
+
+.match-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50px; /* Минимальная высота для элементов */
+    width: 100%;
+}
+
+.list-group-item {
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.2s;
+}
+
+.list-group-item:hover {
+    background-color: rgba(126, 211, 33, 0.2); /* Светло-зеленый */
+    transform: scale(1.05); /* Легкое увеличение при наведении */
+}
+
+.list-group-item.active {
+    background-color: rgba(126, 211, 33, 0.3); /* Цвет для активного элемента */
+    color: white;
+}
+
+.list-group-item-action {
+    cursor: pointer;
+}

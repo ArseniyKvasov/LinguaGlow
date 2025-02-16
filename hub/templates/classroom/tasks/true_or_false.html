@@ -1,0 +1,18 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    <div class="questions-list">
+        {% if task.content_object.statements %}
+        <ul class="list-group">
+            {% for statement in task.content_object.statements %}
+            <li class="list-group-item">
+                <strong>{{ statement.question }}</strong>
+                <p class="mt-2">{{ statement.trueAnswer|yesno:"Правда,Ложь" }}</p>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Вопросы не заданы.</p>
+        {% endif %}
+    </div>
+</div>

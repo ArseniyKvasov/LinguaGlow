@@ -1,0 +1,12 @@
+{% load static %}
+<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
+    <h3>{{ task.content_object.title }}</h3>
+    <div class="form-check mb-2">
+        {% for conditions, score in task.content_object.conditions.items %}
+        <input class="form-check-input" type="checkbox" value="" id="conditional-{{ forloop.counter }}">
+        <label class="form-check-label" for="conditional-{{ forloop.counter }}">
+            {{ conditions }} <span class="text-muted">({{ score }} баллов)</span>
+        </label>
+        {% endfor %}
+    </div>
+</div>

@@ -4,7 +4,9 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import uuid
 import bleach
-
+from datetime import timedelta
+from django.utils.timezone import now
+from users.models import CustomUser
 
 class course(models.Model):
     STUDENT_LEVEL_CHOICES = (
@@ -27,7 +29,6 @@ class course(models.Model):
     def __str__(self):
         return self.name
 
-
 class lesson(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(course, on_delete=models.CASCADE, related_name="lessons")  # Привязка урока к курсу
@@ -42,7 +43,6 @@ class lesson(models.Model):
     def __str__(self):
         return f"{self.name} (Course: {self.course.name})"
 
-
 class section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lesson = models.ForeignKey(lesson, on_delete=models.CASCADE, related_name="sections")  # Привязка секции к уроку
@@ -56,25 +56,19 @@ class section(models.Model):
     def __str__(self):
         return f"{self.name} (Lesson: {self.lesson.name})"
 
-class task(models.Model):
+class BaseTask(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    section = models.ForeignKey('section', on_delete=models.CASCADE, related_name="tasks")
+    section = models.ForeignKey(section, on_delete=models.CASCADE, related_name='%(class)s_tasks')
     order = models.PositiveIntegerField()  # Порядок задания в секции
-
-    # Поля для GenericForeignKey
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.UUIDField()
     content_object = GenericForeignKey('content_type', 'object_id')
 
-    class Meta:
-        abstract = True
-        ordering = ["order"]
-
     def __str__(self):
-        return f"Task {self.id} in Section {self.section.name}"
+        return f"Base Task {self.id} in Section {self.section.name}"
 
 # Список слов
-class wordList(models.Model):
+class WordList(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Word List")
     words = models.JSONField()  # Список слов в формате JSON
@@ -83,7 +77,7 @@ class wordList(models.Model):
         return f"Word List: {self.title}"
 
 # Соотнести слово с переводом
-class matchUpTheWords(models.Model):
+class MatchUpTheWords(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Match Up The Words")
     pairs = models.JSONField()  # Пары слов в формате JSON
@@ -92,7 +86,7 @@ class matchUpTheWords(models.Model):
         return f"Match Up The Words: {self.id}"
 
 # Эссе
-class essay(models.Model):
+class Essay(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.TextField()
     conditions = models.JSONField(null=True)
@@ -101,7 +95,7 @@ class essay(models.Model):
         return f"Essay: {self.title}"
 
 # Заметка
-class note(models.Model):
+class Note(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Note")
     content = models.TextField()
@@ -110,7 +104,7 @@ class note(models.Model):
         return f"Note: {self.content[:50]}..."
 
 # Картинка
-class image(models.Model):
+class Image(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image_url = models.URLField()
     caption = models.CharField(max_length=255, blank=True, null=True)
@@ -119,7 +113,7 @@ class image(models.Model):
         return f"Image: {self.caption}"
 
 # Распределить по колонкам
-class sortIntoColumns(models.Model):
+class SortIntoColumns(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Sort Into Columns")
     columns = models.JSONField()  # Колонки и их элементы в формате JSON
@@ -128,7 +122,7 @@ class sortIntoColumns(models.Model):
         return f"Sort Into Columns: {self.id}"
 
 # Составить предложение в правильном порядке
-class makeASentence(models.Model):
+class MakeASentence(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Make A Sentence")
     sentences = models.JSONField()
@@ -137,7 +131,7 @@ class makeASentence(models.Model):
         return f"Make A Sentence: {self.id}"
 
 # Составить слово
-class unscramble(models.Model):
+class Unscramble(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Unscramble")
     words = models.JSONField()
@@ -146,7 +140,7 @@ class unscramble(models.Model):
         return f"Unscramble: {self.words}"
 
 # Заполнить пропуски
-class fillInTheBlanks(models.Model):
+class FillInTheBlanks(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, default="Fill In The Blanks")
     text = models.TextField()
@@ -166,7 +160,7 @@ class fillInTheBlanks(models.Model):
         return f"Fill In The Blanks: {self.id}"
 
 # Диалог
-class dialogue(models.Model):
+class Dialogue(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     lines = models.JSONField()  # Реплики диалога в формате JSON
 
@@ -174,7 +168,7 @@ class dialogue(models.Model):
         return f"Dialogue: {self.id}"
 
 # Статья
-class article(models.Model):
+class Article(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     content = models.TextField()
@@ -183,7 +177,7 @@ class article(models.Model):
         return f"Article: {self.title}"
 
 # Аудио
-class audio(models.Model):
+class Audio(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     audio_url = models.URLField()
     transcript = models.TextField(blank=True, null=True)
@@ -192,7 +186,7 @@ class audio(models.Model):
         return f"Audio: {self.audio_url}"
 
 # Тест
-class test(models.Model):
+class Test(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     questions = models.JSONField()  # Вопросы и варианты ответов в формате JSON
 
@@ -200,7 +194,7 @@ class test(models.Model):
         return f"Test: {self.id}"
 
 # Правда или ложь
-class trueOrFalse(models.Model):
+class TrueOrFalse(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     statements = models.JSONField()  # Утверждения и их правильность в формате JSON
 
@@ -208,15 +202,15 @@ class trueOrFalse(models.Model):
         return f"True Or False: {self.id}"
 
 # Подписать картинку
-class labelImages(models.Model):
+class LabelImages(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    image_urls = models.ManyToManyField('imageUsage', through='labelImageOrder', related_name='label_images')
+    image_urls = models.ManyToManyField('ImageUsage', through='LabelImageOrder', related_name='label_images')
     labels = models.JSONField()
 
     def __str__(self):
         return f"Label Images: {self.id}"
 
-class imageUsage(models.Model):
+class ImageUsage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     image_url = models.URLField(unique=True)
     usage_count = models.PositiveIntegerField(default=0)
@@ -224,16 +218,13 @@ class imageUsage(models.Model):
     def __str__(self):
         return f"Image: {self.id} ({self.image_url})"
 
-class labelImageOrder(models.Model):
-    label_image = models.ForeignKey(labelImages, on_delete=models.CASCADE)
-    image_usage = models.ForeignKey(imageUsage, on_delete=models.CASCADE)
-    order = models.PositiveIntegerField()  # Это поле будет хранить порядок
-
-    class Meta:
-        ordering = ['order']  # Гарантирует порядок изображений
+class LabelImageOrder(models.Model):
+    label_image = models.ForeignKey(LabelImages, on_delete=models.CASCADE)
+    image_usage = models.ForeignKey(ImageUsage, on_delete=models.CASCADE)
+    image_order = models.PositiveIntegerField()  # Это поле будет хранить порядок
 
     def __str__(self):
-        return f"Order {self.order} for Image {self.image_usage.id}"
+        return f"Order {self.image_order} for Image {self.image_usage.id}"
 
 # Quizlet и WordWall
 class EmbeddedTask(models.Model):
@@ -242,23 +233,119 @@ class EmbeddedTask(models.Model):
     embed_code = models.TextField()  # Здесь будет храниться HTML-код iframe
 
     def save(self, *args, **kwargs):
-        allowed_tags = ['iframe']  # Разрешаем только iframe
+        # Разрешаем только iframe и его атрибуты
+        allowed_tags = ['iframe']
         allowed_attrs = {
-            'iframe': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen']
+            'iframe': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'style']
         }
 
-        self.embed_code = bleach.clean(self.embed_code, tags=allowed_tags, attributes=allowed_attrs)
+        # Очищаем HTML-код, сохраняя только разрешенные теги и атрибуты
+        self.embed_code = bleach.clean(
+            self.embed_code,
+            tags=allowed_tags,
+            attributes=allowed_attrs,
+            strip=True  # Удаляем все неразрешенные теги и атрибуты
+        )
+
+        # Вызов стандартного метода save
         super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
 
 
-# Филворд
-class wordSearch(models.Model):
+class Classroom(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    grid = models.JSONField()  # Сетка филворда
-    words = models.JSONField()  # Слова для поиска
+
+    # Учителя (только пользователи с ролью "teacher")
+    teachers = models.ManyToManyField(
+        CustomUser,
+        related_name="classrooms_as_teacher",
+        limit_choices_to={"role": "teacher"},
+        verbose_name="Учителя"
+    )
+
+    # Ученики (роль: student или teacher, но не учителя из списка teachers)
+    students = models.ManyToManyField(
+        CustomUser,
+        related_name="classrooms_as_student",
+        limit_choices_to={"role__in": ["student", "teacher"]},
+        verbose_name="Ученики"
+    )
+
+    # Активные ученики (ученики с постоянным доступом)
+    active_students = models.ManyToManyField(
+        CustomUser,
+        related_name="active_classrooms",
+        limit_choices_to={"role__in": ["student", "teacher"]},
+        verbose_name="Активные ученики",
+        blank=True
+    )
+
+    # Временные ученики (доступ на 1 день)
+    temporary_students = models.ManyToManyField(
+        CustomUser,
+        related_name="temporary_classrooms",
+        limit_choices_to={"role": "student"},
+        verbose_name="Временные ученики",
+        blank=True
+    )
+
+    # Текущий урок (активный)
+    lesson = models.ForeignKey(lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name="classrooms")
+
+    # Уроки, которые уже были (включает завершенные и незавершенные)
+    completed_lessons = models.ManyToManyField('lesson', related_name="completed_classrooms", through="CompletedLesson", blank=True, verbose_name="Пройденные уроки")
+
+    created_at = models.DateTimeField(auto_now_add=True)  # Дата создания класса
+    updated_at = models.DateTimeField(auto_now=True)  # Дата последнего обновления
+
+    def clean(self):
+        """Запрещаем добавление учителей в список учеников"""
+        if set(self.teachers.all()) & set(self.students.all()):
+            raise ValueError("Учителя не могут быть учениками в этом классе.")
+
+    def add_temporary_student(self, student):
+        """Добавляет временного ученика на 1 день"""
+        self.temporary_students.add(student)
+        TemporaryStudentAccess.objects.create(classroom=self, student=student, expires_at=now() + timedelta(days=1))
+
+    def remove_expired_temporary_students(self):
+        """Удаляет учеников с истекшим доступом"""
+        expired_students = TemporaryStudentAccess.objects.filter(classroom=self, expires_at__lt=now()).values_list("student", flat=True)
+        self.temporary_students.remove(*expired_students)
+        TemporaryStudentAccess.objects.filter(classroom=self, expires_at__lt=now()).delete()
+
+    def mark_lesson_completed(self, lesson, is_finished=True):
+        """Помечает урок как завершенный (или нет)"""
+        completed_lesson, created = CompletedLesson.objects.get_or_create(classroom=self, lesson=lesson)
+        completed_lesson.is_finished = is_finished
+        completed_lesson.save()
 
     def __str__(self):
-        return f"Word Search: {self.id}"
+        return f"Classroom {self.id} - Lesson: {self.lesson.name}"
+
+
+class TemporaryStudentAccess(models.Model):
+    """Модель для отслеживания срока действия временных учеников"""
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="temporary_access_records")
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="temporary_classroom_access")
+    expires_at = models.DateTimeField()
+
+    def __str__(self):
+        return f"Temporary Access: {self.student.username} until {self.expires_at}"
+
+
+class CompletedLesson(models.Model):
+    """Модель для хранения пройденных уроков"""
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="completed_records")
+    lesson = models.ForeignKey(lesson, on_delete=models.CASCADE, related_name="completed_lessons")
+    is_finished = models.BooleanField(default=False)  # Завершен ли урок
+    completed_at = models.DateTimeField(auto_now_add=True)  # Время завершения
+
+    class Meta:
+        unique_together = ("classroom", "lesson")  # Уникальность записи по классу и уроку
+
+    def __str__(self):
+        status = "Завершен" if self.is_finished else "В процессе"
+        return f"{self.lesson.name} ({status})"

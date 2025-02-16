@@ -19,7 +19,7 @@ export function init(taskData = null, selectedTasksData = null) {
     if (taskData) {
         titleInput.value = taskData.title || '';
         textInput.value = taskData.text || '';
-        const format = taskData.format || 'list';
+        const format = taskData.display_format || 'list';
         document.querySelector(`input[value="${format}"]`).checked = true;
     }
 
@@ -63,7 +63,7 @@ export function init(taskData = null, selectedTasksData = null) {
                     task_type: 'fillInTheBlanks',
                     payloads: {
                         title: titleInput.value || 'Fill In The Blanks',
-                        format: selectedFormat,
+                        display_format: selectedFormat,
                         text: convertMarkdownToHTML(text)
                     }
                 }),
