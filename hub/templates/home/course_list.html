@@ -15,8 +15,8 @@
         <table class="table table-hover table-bordered">
             <thead class="table-success">
                 <tr>
+                    <th>Название</th>
                     <th>Урок</th>
-                    <th>ID Класса</th>
                     <th>Роль</th>
                     <th>Действия</th>
                 </tr>
@@ -24,8 +24,8 @@
             <tbody>
                 {% for classroom in classrooms %}
                 <tr>
+                    <td>{{ classroom.name }}</td>
                     <td>{{ classroom.lesson.name }}</td>
-                    <td>{{ classroom.id }}</td>
                     <td>
                         {% if user in classroom.teachers.all %}
                             <span class="badge bg-primary">Учитель</span>

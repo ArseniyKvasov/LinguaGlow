@@ -1,12 +1,19 @@
-from django.conf import settings
+import random
+import string
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 import uuid
 import bleach
-from datetime import timedelta
+from datetime import timedelta, timezone
+from django.utils import timezone
 from django.utils.timezone import now
-from users.models import CustomUser
+from django.conf import settings
+from django_cron import CronJobBase, Schedule
+
+class CourseManager(models.Manager):
+    def for_user(self, user):
+        return self.filter(models.Q(user=user) | models.Q(lessons__sections__tasks__assigned_users=user)).distinct()
 
 class course(models.Model):
     STUDENT_LEVEL_CHOICES = (
@@ -25,6 +32,8 @@ class course(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="courses")  # Автор курса
     created_at = models.DateTimeField(auto_now_add=True)  # Дата создания курса
     updated_at = models.DateTimeField(auto_now=True)  # Дата последнего обновления
+
+    objects = CourseManager()
 
     def __str__(self):
         return self.name
@@ -253,13 +262,18 @@ class EmbeddedTask(models.Model):
     def __str__(self):
         return self.title
 
+class ClassroomManager(models.Manager):
+    def for_user(self, user):
+        return self.filter(models.Q(students=user) | models.Q(teachers=user)).distinct()
 
 class Classroom(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    name = models.CharField(max_length=255, default="Class")
+
     # Учителя (только пользователи с ролью "teacher")
     teachers = models.ManyToManyField(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         related_name="classrooms_as_teacher",
         limit_choices_to={"role": "teacher"},
         verbose_name="Учителя"
@@ -267,7 +281,7 @@ class Classroom(models.Model):
 
     # Ученики (роль: student или teacher, но не учителя из списка teachers)
     students = models.ManyToManyField(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         related_name="classrooms_as_student",
         limit_choices_to={"role__in": ["student", "teacher"]},
         verbose_name="Ученики"
@@ -275,7 +289,7 @@ class Classroom(models.Model):
 
     # Активные ученики (ученики с постоянным доступом)
     active_students = models.ManyToManyField(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         related_name="active_classrooms",
         limit_choices_to={"role__in": ["student", "teacher"]},
         verbose_name="Активные ученики",
@@ -284,7 +298,7 @@ class Classroom(models.Model):
 
     # Временные ученики (доступ на 1 день)
     temporary_students = models.ManyToManyField(
-        CustomUser,
+        settings.AUTH_USER_MODEL,
         related_name="temporary_classrooms",
         limit_choices_to={"role": "student"},
         verbose_name="Временные ученики",
@@ -293,6 +307,7 @@ class Classroom(models.Model):
 
     # Текущий урок (активный)
     lesson = models.ForeignKey(lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name="classrooms")
+    objects = ClassroomManager()
 
     # Уроки, которые уже были (включает завершенные и незавершенные)
     completed_lessons = models.ManyToManyField('lesson', related_name="completed_classrooms", through="CompletedLesson", blank=True, verbose_name="Пройденные уроки")
@@ -322,14 +337,20 @@ class Classroom(models.Model):
         completed_lesson.is_finished = is_finished
         completed_lesson.save()
 
+    def create_invitation(self):
+        """Создает приглашение для класса."""
+        code = generate_invitation_code()
+        invitation = ClassroomInvitation.objects.create(classroom=self, code=code)
+        return invitation
+
     def __str__(self):
-        return f"Classroom {self.id} - Lesson: {self.lesson.name}"
+        return f"Classroom {self.id}"
 
 
 class TemporaryStudentAccess(models.Model):
     """Модель для отслеживания срока действия временных учеников"""
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="temporary_access_records")
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="temporary_classroom_access")
+    student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="temporary_classroom_access")
     expires_at = models.DateTimeField()
 
     def __str__(self):
@@ -349,3 +370,51 @@ class CompletedLesson(models.Model):
     def __str__(self):
         status = "Завершен" if self.is_finished else "В процессе"
         return f"{self.lesson.name} ({status})"
+
+def generate_invitation_code(length=6):
+    """Генерация случайного кода для приглашения."""
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+class ClassroomInvitation(models.Model):
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="invitations")
+    code = models.CharField(max_length=10, unique=True)  # Уникальный код приглашения
+    created_at = models.DateTimeField(auto_now_add=True)  # Дата создания приглашения
+    expires_at = models.DateTimeField()  # Дата истечения приглашения
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(days=2)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Invitation to {self.classroom.name} (Code: {self.code})"
+
+class UserAnswer(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="user_answers")
+    task = models.ForeignKey(BaseTask, on_delete=models.CASCADE, related_name="user_answers")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="answers")
+    answer_data = models.JSONField()  # Хранение ответа в формате JSON
+    submitted_at = models.DateTimeField(auto_now_add=True)  # Время отправки ответа
+    updated_at = models.DateTimeField(auto_now=True)  # Время последнего обновления
+
+    class Meta:
+        unique_together = ('classroom', 'task', 'user')  # Один пользователь - один ответ на задание в классе
+
+    def __str__(self):
+        return self.answer_data
+
+    @classmethod
+    def delete_old_answers(cls):
+        expiration_date = timezone.now() - timedelta(days=180)
+        cls.objects.filter(updated_at__lt=expiration_date).delete()
+
+
+class DeleteOldAnswersCronJob(CronJobBase):
+    RUN_EVERY_MINS = 1440  # Запуск раз в день
+    schedule = Schedule(run_every_mins=RUN_EVERY_MINS)
+    code = 'app.delete_old_answers'
+
+    def do(self):
+        UserAnswer.delete_old_answers()

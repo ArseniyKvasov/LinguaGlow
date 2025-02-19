@@ -20,6 +20,11 @@ urlpatterns = [
     path("choose-classroom/<uuid:lesson_id>/", views.choose_classroom, name="choose_classroom"),
     path("create-classroom/<uuid:lesson_id>/", views.create_classroom, name="create_classroom"),
 
+    path("invite/<uuid:classroom_id>/", views.create_invitation, name="create_invitation"),
+    path("invitation/<str:code>/", views.accept_invitation, name="accept_invitation"),
+
     path('search-images/', ai_calls.search_images, name='search_images'),
     path('generate-task/', views.jsCall, name='task_generation'),
+
+    path('save_user_answer/', views.save_user_answer_view, name='save_user_answer'),
 ]

@@ -1,5 +1,6 @@
 {% load static %}
 {% load custom_tags %}
+{% load custom_filters %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -52,6 +53,28 @@
         .section-card:nth-child(8) { animation-delay: 0.8s; }
         .section-card:nth-child(9) { animation-delay: 0.9s; }
         .section-card:nth-child(10) { animation-delay: 1s; }
+
+        /* Анимация при наведении на карточки */
+        .classroom-list .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .classroom-list .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Анимация для кнопок */
+        .btn-success:hover, .btn-primary:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s ease;
+        }
+
+        /* Подсветка выбранной карточки */
+        .classroom-list input[type="radio"]:checked + .card {
+            border: 2px solid #007bff;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -93,9 +116,12 @@
     </div>
 
     <!-- Кнопка добавления секции -->
-    <div class="text-center mt-4">
-        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addSectionModal">
+    <div class="text-center mt-4 d-flex justify-content-center">
+        <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addSectionModal">
             <i class="bi bi-plus-lg"></i> Добавить секцию
+        </button>
+        <button id="addToClassButton" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#classroomModal">
+            <i class="bi bi-plus"></i> Добавить в класс
         </button>
     </div>
 </div>
@@ -129,7 +155,130 @@
     </div>
 </div>
 
+<!-- Модальное окно для выбора и создания класса -->
+<div class="modal fade" id="classroomModal" tabindex="-1" aria-labelledby="classroomModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- Заголовок модального окна -->
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="classroomModalLabel">Выберите или создайте класс для урока "{{ lesson.name }}"</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+            </div>
+
+            <!-- Тело модального окна -->
+            <div class="modal-body">
+                <!-- Список классов -->
+                <h4 class="text-primary mb-3">Выберите класс:</h4>
+                <form id="chooseClassroomForm" method="POST" action="{% url 'choose_classroom' lesson.id %}">
+                    {% csrf_token %}
+                    <ul class="classroom-list list-unstyled">
+                        {% for classroom in classrooms %}
+                            <li class="mb-3">
+                                <div class="card shadow-sm">
+                                    <div class="card-body">
+                                        <label class="d-flex align-items-center mb-0">
+                                            <input type="radio" name="classroom_id" value="{{ classroom.id }}" class="me-3">
+                                            <div>
+                                                <p class="card-text text-muted mb-0">
+                                                    <i class="bi bi-book me-2"></i> {{ classroom.name }}
+                                                </p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-circle me-2"></i> Выбрать класс
+                    </button>
+                </form>
+
+                <!-- Разделитель -->
+                <hr class="my-4">
+
+                <!-- Форма создания нового класса -->
+                <h4 class="text-primary mb-3">Создать новый класс:</h4>
+                <form id="createClassroomForm" method="POST" action="{% url 'create_classroom' lesson.id %}">
+                    {% csrf_token %}
+                    <div class="create-classroom-form">
+                        <!-- Поле "Название класса" -->
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">
+                                <i class="bi bi-pencil-square me-2"></i> Название класса:
+                            </label>
+                            <input type="text" name="name" id="id_name" class="form-control" placeholder="Введите название класса" required>
+                        </div>
+
+                        <!-- Скрытое поле для учителя -->
+                        <input type="hidden" name="teacher" value="{{ request|get_current_user }}">
+
+                        <!-- Кнопка отправки формы -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i> Создать класс
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Футер модального окна -->
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i> Закрыть
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block content %}{% endblock %}
 
+
+<script>
+    // Обработка отправки форм через AJAX
+    document.getElementById("chooseClassroomForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch(this.action, {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": formData.get("csrfmiddlewaretoken"),
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert("Ошибка при выборе класса.");
+                }
+            });
+    });
+
+    document.getElementById("createClassroomForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        fetch(this.action, {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": formData.get("csrfmiddlewaretoken"),
+            },
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert("Ошибка при создании класса.");
+                }
+            });
+    });
+</script>
 </body>
 </html>

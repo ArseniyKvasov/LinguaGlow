@@ -8,41 +8,26 @@
     <div class="card-body bg-light bg-opacity-25">
         <div class="container">
             <div class="row g-3">
-                <div class="col-6 word-column d-flex flex-column h-100">
-                    {% for word in task.content_object.pairs.keys %}
-                    <button class="match-btn btn btn-outline-success fs-6 fw-bold word-wrap w-100" data-word="{{ word }}">
-                        {{ word }}
-                    </button>
-                    {% endfor %}
-                </div>
-                <div class="col-6 translation-column d-flex flex-column h-100">
-                    {% for translation in task.content_object.pairs.values %}
-                    <button class="match-btn btn btn-outline-success fs-6 fw-bold word-wrap w-100" data-translation="{{ translation }}">
-                        {{ translation }}
-                    </button>
+                <div class="col-12 d-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                    {% for word, translation in task.content_object.pairs.items %}
+                    <div class="d-grid align-items-stretch">
+                        <button class="match-btn btn btn-outline-secondary fs-6 fw-bold word-wrap w-100"
+                            data-word="{{ word }}" onclick="this.classList.add('active');">
+                            {{ word }}
+                        </button>
+                    </div>
+                    <div class="d-grid align-items-stretch">
+                        <button class="match-btn btn btn-outline-secondary fs-6 fw-bold word-wrap w-100"
+                            data-translation="{{ translation }}" onclick="this.classList.add('active');">
+                            {{ translation }}
+                        </button>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
+        <div id="matched-pairs-{{ task.id }}" class="mt-3">
+            <!-- Здесь появятся правильно подобранные пары -->
+        </div>
     </div>
 </div>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    function shuffleElements(containerSelector) {
-        let container = document.querySelector(containerSelector);
-        if (!container) return;
-
-        let elements = Array.from(container.children);
-        // Перемешиваем массив элементов
-        elements = elements.sort(() => Math.random() - 0.5);
-
-        // Перезаполняем контейнер новыми отсортированными элементами
-        elements.forEach(el => container.appendChild(el));
-    }
-
-    shuffleElements(".word-column");  // Перемешиваем слова
-    shuffleElements(".translation-column");  // Перемешиваем переводы
-});
-</script>
-

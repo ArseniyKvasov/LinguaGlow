@@ -1,14 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from .ai_calls import text_generation
-from .models import course, section, lesson, BaseTask, WordList, Image, MatchUpTheWords, Essay, Note, SortIntoColumns, MakeASentence, Unscramble, FillInTheBlanks, Dialogue, Article, Audio, Test, TrueOrFalse, LabelImages, ImageUsage, LabelImageOrder, EmbeddedTask, Classroom
+from .models import course, section, lesson, BaseTask, WordList, Image, MatchUpTheWords, Essay, Note, SortIntoColumns, MakeASentence, Unscramble, FillInTheBlanks, Dialogue, Article, Audio, Test, TrueOrFalse, LabelImages, ImageUsage, LabelImageOrder, EmbeddedTask, Classroom, ClassroomInvitation, UserAnswer
 from django.http import HttpResponseRedirect, JsonResponse
-from .forms import ClassroomForm
 from django.db import transaction
 from django.db.models import Max
+from .forms import ClassroomForm
 from django.db import models
 from django.urls import reverse
 import json
+from datetime import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponseForbidden
+from django.db.models import Q
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
 import re
 from django.contrib.contenttypes.models import ContentType
 
@@ -44,6 +50,9 @@ def delete_course(request, course_id):
 
 def lesson_list_view(request, course_id):
     selected_course = get_object_or_404(course, id=course_id)
+    if not (request.user == selected_course.user):
+        return HttpResponseForbidden("You do not have access to this lesson.")
+
     lessons = lesson.objects.filter(course=selected_course)
 
     # Передаём уроки и пользователя в контекст для рендера
@@ -77,8 +86,19 @@ def add_lesson(request, course_id):
 
 def lesson_page_view(request, lesson_id):
     lesson_obj = get_object_or_404(lesson, id=lesson_id)
+    course_obj = get_object_or_404(course, id=lesson_obj.course.id)
+
+    if not (request.user == course_obj.user):
+        return HttpResponseForbidden("You do not have access to this lesson.")
+
     sections = lesson_obj.sections.all().order_by('order')
-    return render(request, 'builder/lesson_page.html', {'lesson': lesson_obj, 'section_list': sections})
+    classrooms = Classroom.objects.filter(Q(teachers=request.user) | Q(students=request.user)).distinct()
+
+    return render(request, 'builder/lesson_page.html', {
+        'lesson': lesson_obj,
+        'section_list': sections,
+        'classrooms': classrooms
+    })
 
 def delete_lesson(request, lesson_id):
     lesson_to_delete = get_object_or_404(lesson, id=lesson_id)
@@ -111,8 +131,13 @@ def add_section(request, lesson_id):
 def section_view(request, section_id):
     selected_section = get_object_or_404(section, id=section_id)
     lesson_obj = get_object_or_404(lesson, id=selected_section.lesson.id)
-    section_list = section.objects.filter(lesson=lesson_obj).order_by('order')
+    course_obj = get_object_or_404(course, id=lesson_obj.course.id)
 
+    if not (request.user == course_obj.user):
+        return HttpResponseForbidden("You do not have access to this section.")
+
+    section_list = section.objects.filter(lesson=lesson_obj).order_by('order')
+    classrooms = Classroom.objects.filter(Q(teachers=request.user) | Q(students=request.user)).distinct()
     tasks = BaseTask.objects.filter(section=selected_section).order_by('order')
 
     return render(request, 'builder/section_page.html', {
@@ -120,6 +145,7 @@ def section_view(request, section_id):
         'lesson': lesson_obj,
         'section_list': section_list,
         'selected_section': selected_section,
+        'classrooms': classrooms,
     })
 
 def delete_section_view(request, section_id):
@@ -722,43 +748,43 @@ def fillInTheBlanksAI(request, payloads):
     return json.dumps(formatted_sentences, ensure_ascii=False)
 
 
-
 def choose_classroom(request, lesson_id):
-    """Страница выбора или создания класса"""
+    """Страница выбора класса с AJAX-поддержкой."""
     lesson_instance = get_object_or_404(lesson, id=lesson_id)
-    classrooms = Classroom.objects.all()  # Можно фильтровать по пользователю
 
     if request.method == "POST":
         selected_class_id = request.POST.get("classroom_id")
         if selected_class_id:
             classroom = get_object_or_404(Classroom, id=selected_class_id)
-            classroom.lesson = lesson_instance  # Назначаем урок
+            classroom.lesson = lesson_instance
             classroom.save()
-            return redirect("classroom_view", classroom_id=classroom.id)
-
-    return render(request, "classroom/choose_classroom.html", {"lesson": lesson_instance, "classrooms": classrooms})
-
+            return JsonResponse({"success": True, "redirect_url": reverse("classroom_view", args=[classroom.id])})
+        return JsonResponse({"success": False})
 
 def create_classroom(request, lesson_id):
-    """Создание нового класса"""
+    """Создание нового класса с AJAX-поддержкой."""
     lesson_instance = get_object_or_404(lesson, id=lesson_id)
 
     if request.method == "POST":
         form = ClassroomForm(request.POST)
         if form.is_valid():
-            new_classroom = form.save()
+            new_classroom = form.save(commit=False)
             new_classroom.lesson = lesson_instance
             new_classroom.save()
-            return redirect("classroom_view", classroom_id=new_classroom.id)
-    else:
-        form = ClassroomForm()
+            new_classroom.teachers.add(request.user)
 
-    return render(request, "classroom/create_classroom.html", {"form": form, "lesson": lesson_instance})
+        return JsonResponse({"success": True, "redirect_url": reverse("classroom_view", args=[new_classroom.id])})
 
 def classroom_view(request, classroom_id):
-    classroom_obj = get_object_or_404(Classroom, id=classroom_id)
+    classroom_obj = Classroom.objects.for_user(request.user).filter(id=classroom_id).first()
+
+    if not classroom_obj:
+        return HttpResponseForbidden("У вас нет доступа к этому классу.")
+
     lesson_obj = classroom_obj.lesson
     sections = lesson_obj.sections.all().order_by('order')
+    students = classroom_obj.students.all()  # Получаем всех учеников класса
+    teachers = classroom_obj.teachers.all()
 
     # Получаем все задачи и группируем их по секциям
     tasks = BaseTask.objects.filter(section__in=sections).select_related('content_type').order_by('section', 'order')
@@ -766,12 +792,94 @@ def classroom_view(request, classroom_id):
     section_tasks = []
     for section in sections:
         section_tasks.append({
+            'id': section.id,
             'section_title': section.name,
             'tasks': [task for task in tasks if task.section_id == section.id]
         })
 
     return render(request, 'classroom/classroom.html', {
+        'classroom': classroom_obj,
         'lesson': lesson_obj,
         'section_list': sections,
-        'section_tasks': section_tasks
+        'section_tasks': section_tasks,
+        'students': students,
+        'teachers': teachers,
     })
+
+
+
+@login_required
+def accept_invitation(request, code):
+    """Обработка перехода по ссылке приглашения."""
+    invitation = get_object_or_404(ClassroomInvitation, code=code)
+
+    # Проверяем, не истекло ли приглашение
+    if timezone.now() > invitation.expires_at:
+        return redirect("invitation_expired")  # Редирект на страницу с сообщением об истечении срока
+
+    classroom = invitation.classroom
+
+    # Если пользователь авторизован, добавляем его как постоянного ученика
+    if request.user.is_authenticated:
+        classroom.students.add(request.user)
+        return redirect("classroom_view", classroom_id=classroom.id)
+
+    # Если пользователь не авторизован, добавляем его как временного ученика
+    else:
+        # Создаем временного пользователя (если требуется)
+        # Например, можно создать анонимного пользователя или перенаправить на страницу регистрации
+        return redirect("register")  # Редирект на страницу регистрации
+
+def create_invitation(request, classroom_id):
+    """Создает приглашение и возвращает короткую ссылку."""
+    classroom = get_object_or_404(Classroom, id=classroom_id)
+    invitation = classroom.create_invitation()
+
+    # Формируем короткую ссылку
+    invitation_url = request.build_absolute_uri(
+        reverse("accept_invitation", args=[invitation.code])
+    )
+
+    return JsonResponse({"invitation_url": invitation_url})
+
+@csrf_exempt
+def save_user_answer_view(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            task_id = data.get('task_id')
+            user_id = data.get('user_id')
+            word = data.get('word')
+            translation = data.get('translation')
+
+            if task_id and user_id and word and translation:
+                save_user_answer(task_id, user_id, word, translation)
+                return JsonResponse({'status': 'success'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+def save_user_answer(task_id, user_id, word, translation):
+    user_answer, created = UserAnswer.objects.get_or_create(
+        task_id=task_id,
+        user_id=user_id,
+        defaults={'answer_data': {}, 'updated_at': timezone.now()}
+    )
+
+    if not created:
+        # If the UserAnswer already exists, update the answer_data
+        answer_data = user_answer.answer_data
+        if word in answer_data:
+            # Append the new translation to the existing list of translations
+            if translation not in answer_data[word]['translations']:
+                answer_data[word]['translations'].append(translation)
+        else:
+            # Create a new entry for the word with the translation
+            answer_data[word] = {'translations': [translation]}
+
+        user_answer.answer_data = answer_data
+        user_answer.updated_at = timezone.now()
+        user_answer.save()
