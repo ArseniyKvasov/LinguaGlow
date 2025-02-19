@@ -1,0 +1,11 @@
+django
+channels
+psycopg2-binary
+django-extensions
+uvicorn
+daphne
+bleach
+Werkzeug
+requests
+django_ratelimit
+django_cron
