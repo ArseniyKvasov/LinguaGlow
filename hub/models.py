@@ -394,8 +394,9 @@ class UserAnswer(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     classroom = models.ForeignKey(Classroom, on_delete=models.CASCADE, related_name="user_answers")
     task = models.ForeignKey(BaseTask, on_delete=models.CASCADE, related_name="user_answers")
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="answers")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="user_answers")
     answer_data = models.JSONField()  # Хранение ответа в формате JSON
+    score = models.IntegerField(default=0)  # Оценка ответа
     submitted_at = models.DateTimeField(auto_now_add=True)  # Время отправки ответа
     updated_at = models.DateTimeField(auto_now=True)  # Время последнего обновления
 
@@ -403,7 +404,7 @@ class UserAnswer(models.Model):
         unique_together = ('classroom', 'task', 'user')  # Один пользователь - один ответ на задание в классе
 
     def __str__(self):
-        return self.answer_data
+        return f"UserAnswer(id={self.id}, user={self.user}, task={self.task})"
 
     @classmethod
     def delete_old_answers(cls):

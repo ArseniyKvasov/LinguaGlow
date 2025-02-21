@@ -1,32 +1,81 @@
+// Common Functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 function showToast(message) {
-    // Клонируем шаблон
-    let toastTemplate = document.getElementById('toast-template');
-    let toastClone = toastTemplate.cloneNode(true);
+    const toastTemplate = document.getElementById('toast-template');
+    const toastClone = toastTemplate.cloneNode(true);
     toastClone.removeAttribute('id');
-
-    // Устанавливаем текст сообщения
     toastClone.querySelector('.toast-message').textContent = message;
-
-    // Добавляем в контейнер
     document.querySelector('.toast-container').appendChild(toastClone);
-
-    // Инициализируем Toast
-    let toast = new bootstrap.Toast(toastClone);
+    const toast = new bootstrap.Toast(toastClone);
     toast.show();
-
-    // Удаляем уведомление после 2 секунд
     setTimeout(() => {
         toastClone.remove();
     }, 2000);
 }
 
+function sendMessage(type, receivers, payloads) {
+    socket.send(JSON.stringify({
+        'message_type': type,
+        'sender': username,
+        'payloads': payloads,
+        'receivers': receivers,
+    }));
+}
+
+async function saveUserAnswer(taskId, classroomId, payloads, request_type=null) {
+    console.log('Saving user answer...');
+    const url = '/hub/save_user_answer/';
+    const data = {
+        task_id: taskId,
+        classroom_id: classroomId,
+        payloads: payloads,
+        request_type: request_type,
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log(result.success);
+        } else {
+            const error = await response.json();
+            console.error(error);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+
+// Invitation Functionality
 function copyInvitationLink() {
     const linkInput = document.getElementById("invitationLink");
     linkInput.select();
     document.execCommand("copy");
 }
 
-// Генерация ссылки при открытии модального окна
 document.getElementById("inviteStudentModal").addEventListener("show.bs.modal", function (event) {
     fetch(`/hub/invite/${classroomId}`)
         .then(response => response.json())
@@ -36,6 +85,8 @@ document.getElementById("inviteStudentModal").addEventListener("show.bs.modal", 
         });
 });
 
+
+// Section Management
 document.addEventListener("DOMContentLoaded", function () {
     const sectionLinks = document.querySelectorAll('.section-link');
     const sections = document.querySelectorAll('.section-content');
@@ -43,17 +94,11 @@ document.addEventListener("DOMContentLoaded", function () {
     sectionLinks.forEach(link => {
         link.addEventListener('click', function () {
             const sectionId = link.getAttribute('data-section');
-
-            // Скрываем все секции
             sections.forEach(section => section.classList.add('d-none'));
-
-            // Показываем нужную секцию
             const activeSection = document.getElementById(`section-${sectionId}`);
             if (activeSection) {
                 activeSection.classList.remove('d-none');
             }
-
-            // Меняем выделение у списка
             sectionLinks.forEach(item => item.classList.remove('fw-bold'));
             link.classList.add('fw-bold');
         });
@@ -61,28 +106,25 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
-// Отображение в реальном времени
+// WebSocket Communication
 let socket = new WebSocket(`ws://${window.location.host}/ws/classroom/${classroomId}/`);
 
 socket.onopen = function () {
-    console.log("WebSocket подключен");
-
-    // Отправляем свое имя пользователя при подключении
-    sendMessage('join', {});
+    sendMessage('join', 'all', {});
 };
 
 socket.onmessage = function (event) {
     let data = JSON.parse(event.data);
-
-    // Если это уведомление о подключении нового пользователя
-    if (data.message_type === 'join') {
-        if (data.sender !== username) {
-            showToast(`${data.sender} вошел в класс!`);
+    if (data.message_type === "reset") {
+        if (data.payloads.type === "match_words") {
+            resetMatchWordsTask(data.payloads.task_id);
         }
+    } else if (data.message_type === 'join') {
+        showToast(`${data.sender} вошел в класс!`);
     } else if (data.message_type === 'match_pair') {
-        handlePairMatch(data.payloads);
+        const payloads = data.payloads;
+        handlePairMatch(payloads.task_id, payloads.word, payloads.translation, false);
     } else {
-        // Обрабатываем другие типы сообщений
         console.log(`Received message: ${JSON.stringify(data)}`);
     }
 };
@@ -95,61 +137,34 @@ socket.onclose = function () {
     console.log("WebSocket закрыт");
 };
 
-// Отправка сообщения
-function sendMessage(type, payloads) {
-    socket.send(JSON.stringify({
-        'message_type': type,
-        'sender': username,
-        'payloads': payloads
-    }));
+
+// Функция для загрузки сохраненных ответов
+async function loadSavedTasks(taskContainer, type) {
+    const taskId = taskContainer.id.replace('task-', '');
+
+    try {
+        const response = await fetch(
+            `/hub/get_solved_tasks/?task_id=${taskId}&classroom_id=${classroomId}&user_id=${userId}&type=${type}`
+        );
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            if (type === 'match-words') {
+                data.pairs.forEach(pair => {
+                    // pair — это массив, где pair[0] — слово, pair[1] — перевод
+                    handlePairMatch(taskId, pair[0], pair[1], true);
+                });
+                //matchPairsScoreCounter(taskId, data.score);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading saved tasks:', error);
+    }
 }
 
-const matchedPairsCache = new Map();
-
-document.querySelectorAll('.match-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const taskContainer = this.closest('[data-task-type="match-words"]');
-        const taskId = taskContainer.id.replace('task-', '');
-        const isWord = this.hasAttribute('data-word');
-
-        // Поиск парной кнопки
-        const activeBtn = taskContainer.querySelector('.match-btn.active:not([data-translation="'+this.dataset.translation+'"])');
-
-        if (activeBtn) {
-            const payload = {
-                task_id: taskId,
-                word: isWord ? this.dataset.word : activeBtn.dataset.word,
-                translation: isWord ? activeBtn.dataset.translation : this.dataset.translation
-            };
-
-            sendMessage('match_pair', payload);
-            activeBtn.classList.remove('active');
-            this.classList.remove('active');
-        }
-        else {
-            this.classList.add('active');
-        }
+// Инициализация после загрузки страницы
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-task-type="match-words"]').forEach(taskContainer => {
+        loadSavedTasks(taskContainer, 'match-words');
     });
 });
-
-
-function handlePairMatch(payload) {
-    const { task_id, word, translation } = payload;
-    const taskContainer = document.getElementById(`task-${task_id}`);
-    const pairsContainer = taskContainer.querySelector(`#matched-pairs-${task_id}`);
-
-    // Добавление новой пары
-    const pairElement = document.createElement('div');
-    pairElement.className = 'btn btn-success disabled m-1';
-    pairElement.innerHTML = `
-        ${word}
-        <i class="bi bi-arrow-right mx-2"></i>
-        ${translation}
-    `;
-
-    pairsContainer.appendChild(pairElement);
-
-    // Удаление исходных кнопок
-    taskContainer.querySelectorAll(`[data-word="${word}"], [data-translation="${translation}"]`)
-        .forEach(btn => btn.remove());
-}

@@ -1,3 +1,5 @@
+import json
+
 from django import template
 
 register = template.Library()
@@ -10,3 +12,10 @@ def zip_lists(a, b):
 def get_current_user(request):
     """Возвращает текущего пользователя (учителя) из запроса."""
     return request.user
+
+@register.filter
+def to_json(value):
+    """
+    Преобразует Python-словарь в JSON-строку с двойными кавычками.
+    """
+    return json.dumps(value)

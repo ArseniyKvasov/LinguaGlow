@@ -27,4 +27,5 @@ urlpatterns = [
     path('generate-task/', views.jsCall, name='task_generation'),
 
     path('save_user_answer/', views.save_user_answer_view, name='save_user_answer'),
+    path('get_solved_tasks/', views.get_solved_tasks, name='get_solved_tasks'),
 ]

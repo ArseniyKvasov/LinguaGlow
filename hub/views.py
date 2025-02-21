@@ -9,6 +9,7 @@ from .forms import ClassroomForm
 from django.db import models
 from django.urls import reverse
 import json
+from django.conf import settings
 from datetime import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseForbidden
@@ -848,12 +849,17 @@ def save_user_answer_view(request):
         try:
             data = json.loads(request.body)
             task_id = data.get('task_id')
-            user_id = data.get('user_id')
-            word = data.get('word')
-            translation = data.get('translation')
+            classroom_id = data.get('classroom_id')
+            payloads = data.get('payloads')
+            request_type = data.get('request_type', None)
 
-            if task_id and user_id and word and translation:
-                save_user_answer(task_id, user_id, word, translation)
+            if request_type:
+                with transaction.atomic():
+                    process_multiple_users_answers(task_id, classroom_id, request_type)
+                return JsonResponse({'status': 'success'})
+            elif task_id:
+                with transaction.atomic():
+                    process_user_answer(task_id, classroom_id, request.user, payloads)
                 return JsonResponse({'status': 'success'})
             else:
                 return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
@@ -862,24 +868,127 @@ def save_user_answer_view(request):
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
-def save_user_answer(task_id, user_id, word, translation):
+def process_user_answer(task_id, classroom_id, user, payloads):
+    task_instance = BaseTask.objects.get(id=task_id)
+    classroom_instance = Classroom.objects.get(id=classroom_id)
+
+    content_type = ContentType.objects.get_for_model(task_instance.content_object)
     user_answer, created = UserAnswer.objects.get_or_create(
-        task_id=task_id,
-        user_id=user_id,
-        defaults={'answer_data': {}, 'updated_at': timezone.now()}
+        task=task_instance,
+        classroom=classroom_instance,
+        user=user,
+        defaults={'answer_data': [], 'updated_at': timezone.now(), 'score': 0}
     )
 
-    if not created:
-        # If the UserAnswer already exists, update the answer_data
-        answer_data = user_answer.answer_data
-        if word in answer_data:
-            # Append the new translation to the existing list of translations
-            if translation not in answer_data[word]['translations']:
-                answer_data[word]['translations'].append(translation)
-        else:
-            # Create a new entry for the word with the translation
-            answer_data[word] = {'translations': [translation]}
+    if content_type.model_class() == MatchUpTheWords:
+        update_match_up_the_words_answer(user_answer, payloads)
 
-        user_answer.answer_data = answer_data
-        user_answer.updated_at = timezone.now()
-        user_answer.save()
+def process_multiple_users_answers(task_id, classroom_id, request_type):
+    task_instance = BaseTask.objects.get(id=task_id)
+    classroom_instance = Classroom.objects.get(id=classroom_id)
+    classroom_users = list(classroom_instance.teachers.all()) + list(classroom_instance.students.all())
+    if request_type == "reset":
+        for user in classroom_users:
+            user_answer = UserAnswer.objects.filter(task=task_instance, classroom=classroom_instance, user=user).first()
+            if user_answer:
+                user_answer.answer_data = []
+                user_answer.score = 0
+                user_answer.save()
+
+
+def update_match_up_the_words_answer(user_answer, payloads):
+    word = payloads['word']
+    translation = payloads['translation']
+    score = payloads['score']
+    print(word, translation, score)
+    answer_data = user_answer.answer_data
+
+    word_entry = next((item for item in answer_data if item['word'] == word), None)
+    score_entry = user_answer.score if user_answer.score else None
+
+    if word_entry:
+        word_entry['translations'].append(translation)
+    else:
+        answer_data.append({'word': word, 'translations': [translation]})
+
+    if score_entry:
+        user_answer.score += score
+    else:
+        user_answer.score = score
+
+    user_answer.answer_data = answer_data
+    print('saving result', user_answer.answer_data, user_answer.score)
+    user_answer.updated_at = timezone.now()
+    user_answer.save()
+
+
+@login_required
+def get_solved_tasks(request):
+    task_id = request.GET.get('task_id')
+    classroom_id = request.GET.get('classroom_id')
+    type = request.GET.get('type')
+
+    try:
+        classroom_instance = Classroom.objects.get(id=classroom_id)
+        teachers = classroom_instance.teachers.all()
+        user = request.user
+
+        if type == 'match-words':
+            # Списки для хранения ответов
+            student_pairs = []  # Ответы ученика (с дубликатами)
+            teacher_pairs = []  # Ответы учителей (с дубликатами)
+
+            # Получаем ответы ученика
+            user_answers = UserAnswer.objects.filter(
+                task_id=task_id,
+                classroom_id=classroom_id,
+                user=user
+            ).first()
+
+            if user_answers:
+                for pair in user_answers.answer_data:
+                    if 'word' in pair and 'translations' in pair:
+                        for translation in pair['translations']:
+                            student_pairs.append((pair['word'], translation))
+
+            # Получаем ответы учителей
+            for teacher in teachers:
+                teacher_answers = UserAnswer.objects.filter(
+                    task_id=task_id,
+                    classroom_id=classroom_id,
+                    user=teacher
+                ).first()
+
+                if teacher_answers:
+                    for pair in teacher_answers.answer_data:
+                        if 'word' in pair and 'translations' in pair:
+                            for translation in pair['translations']:
+                                teacher_pairs.append((pair['word'], translation))
+
+            # Преобразуем списки в множества для работы с пересечением/разностью
+            student_set = set(student_pairs)
+            teacher_set = set(teacher_pairs)
+
+            # Pairs = (student_pairs ∪ teacher_pairs) без дубликатов
+            pairs = list(student_set | teacher_set)
+
+            # Возвращаем данные в JSON
+            return JsonResponse({
+                'status': 'success',
+                'type': 'match-words',
+                'student_pairs': student_pairs,  # Все ответы ученика
+                'teacher_pairs': teacher_pairs,  # Все ответы учителей
+                'pairs': pairs,  # Разность объединенного и пересечения
+                'score': user_answers.score if user_answers else 0,
+            })
+
+    except Classroom.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Classroom not found'}, status=404)
+
+    except UserAnswer.DoesNotExist:
+        return JsonResponse({
+            'status': 'not_found',
+            'student_pairs': [],
+            'teacher_pairs': [],
+            'pairs': []
+        })

@@ -1,33 +1,40 @@
 {% load static %}
+{% load custom_filters %}
 
-<div class="task-item card mb-4 border-0 shadow-sm" id="task-{{ task.id }}" data-task-type="match-words">
-    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
+<div class="task-item card mb-4 border-0 shadow-lg rounded-3" id="task-{{ task.id }}" data-task-type="match-words">
+    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
         <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
+        <span class="badge bg-primary text-white fs-6">Matching Task</span>
     </div>
 
-    <div class="card-body bg-light bg-opacity-25">
+    <div class="card-body bg-light bg-opacity-50 p-4">
         <div class="container">
             <div class="row g-3">
-                <div class="col-12 d-grid" style="grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div class="col-6 d-flex flex-column">
                     {% for word, translation in task.content_object.pairs.items %}
-                    <div class="d-grid align-items-stretch">
-                        <button class="match-btn btn btn-outline-secondary fs-6 fw-bold word-wrap w-100"
-                            data-word="{{ word }}" onclick="this.classList.add('active');">
+                        <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2"
+                            data-word="{{ word }}">
                             {{ word }}
                         </button>
-                    </div>
-                    <div class="d-grid align-items-stretch">
-                        <button class="match-btn btn btn-outline-secondary fs-6 fw-bold word-wrap w-100"
-                            data-translation="{{ translation }}" onclick="this.classList.add('active');">
+                    {% endfor %}
+                </div>
+                <div class="col-6 d-flex flex-column">
+                    {% for word, translation in task.content_object.pairs.items %}
+                        <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2"
+                            data-translation="{{ translation }}">
                             {{ translation }}
                         </button>
-                    </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
-        <div id="matched-pairs-{{ task.id }}" class="mt-3">
-            <!-- Здесь появятся правильно подобранные пары -->
+    </div>
+
+    <div class="card-footer bg-white text-center py-3">
+        <div class="fs-5 fw-bold">
+            <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.pairs|length }} баллов
         </div>
     </div>
+
+    <div class="correct-pairs d-none" data-pairs="{{ task.content_object.pairs|to_json }}" data-max-score="{{ task.content_object.pairs|length }}"></div>
 </div>
