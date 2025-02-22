@@ -1,39 +1,52 @@
 {% load static %}
 {% load custom_filters %}
 
-<div class="task-item card mb-4 border-0 shadow-lg rounded-3" id="task-{{ task.id }}" data-task-type="match-words">
-    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
-        <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
-        <span class="badge bg-primary text-white fs-6">Matching Task</span>
-    </div>
+<div class="task-item" id="task-{{ task.id }}" data-task-type="match-words">
+    <div class="card mb-3 border-0 shadow-lg rounded-3">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
+            <span class="badge bg-primary text-white fs-6">Matching Task</span>
+        </div>
 
-    <div class="card-body bg-light bg-opacity-50 p-4">
-        <div class="container">
-            <div class="row g-3">
-                <div class="col-6 d-flex flex-column">
+        <div class="card-body bg-light bg-opacity-50 p-4">
+            <div class="container">
+                <div class="row">
                     {% for word, translation in task.content_object.pairs.items %}
-                        <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2"
-                            data-word="{{ word }}">
-                            {{ word }}
-                        </button>
-                    {% endfor %}
-                </div>
-                <div class="col-6 d-flex flex-column">
-                    {% for word, translation in task.content_object.pairs.items %}
-                        <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2"
-                            data-translation="{{ translation }}">
-                            {{ translation }}
-                        </button>
+                    <div class="row pair mb-2">
+                        <div class="col-6">
+                            <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 shadow-sm h-100"
+                                data-word="{{ word }}">
+                                {{ word }}
+                            </button>
+                        </div>
+                        <div class="col-6">
+                            <button class="match-btn btn btn-outline-primary fs-6 fw-bold w-100 shadow-sm h-100"
+                                data-translation="{{ translation }}">
+                                {{ translation }}
+                            </button>
+                        </div>
+                    </div>
                     {% endfor %}
                 </div>
             </div>
         </div>
+
+        <div class="card-footer bg-white text-center py-3">
+            <div class="fs-5 fw-bold">
+                <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.pairs|length }} баллов
+            </div>
+        </div>
     </div>
 
-    <div class="card-footer bg-white text-center py-3">
-        <div class="fs-5 fw-bold">
-            <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.pairs|length }} баллов
-        </div>
+    <div class="action-buttons d-flex justify-content-end mb-4 align-items-center">
+        <button class="btn btn-warning reset-button me-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z"/>
+  <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466"/>
+</svg></button>
+        <button class="btn btn-danger hide-button"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-eye-slash-fill" viewBox="0 0 16 16">
+  <path d="m10.79 12.912-1.614-1.615a3.5 3.5 0 0 1-4.474-4.474l-2.06-2.06C.938 6.278 0 8 0 8s3 5.5 8 5.5a7 7 0 0 0 2.79-.588M5.21 3.088A7 7 0 0 1 8 2.5c5 0 8 5.5 8 5.5s-.939 1.721-2.641 3.238l-2.062-2.062a3.5 3.5 0 0 0-4.474-4.474z"/>
+  <path d="M5.525 7.646a2.5 2.5 0 0 0 2.829 2.829zm4.95.708-2.829-2.83a2.5 2.5 0 0 1 2.829 2.829zm3.171 6-12-12 .708-.708 12 12z"/>
+</svg></button>
     </div>
 
     <div class="correct-pairs d-none" data-pairs="{{ task.content_object.pairs|to_json }}" data-max-score="{{ task.content_object.pairs|length }}"></div>

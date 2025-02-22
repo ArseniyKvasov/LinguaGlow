@@ -1,247 +1,322 @@
-document.addEventListener("DOMContentLoaded", function () {
-    const taskContainers = document.querySelectorAll("[data-task-type='match-words']");
-    taskContainers.forEach(taskContainer => {
-        shuffleWords(taskContainer);
-        const resetButton = document.createElement("button");
-        resetButton.textContent = "Сбросить";
-        resetButton.className = "btn btn-warning mt-3";
-        resetButton.addEventListener("click", () => {
-            const taskId = taskContainer.id.replace('task-', '');
-            sendMessage("reset", "all", {task_id: taskId, classroom_id: classroomId, type: "match_words"});
-            saveUserAnswer(taskId, classroomId, {}, "reset");
-            resetMatchWordsTask(taskId);
+// Добавляем обработчики событий для всех кнопок
+function addMatchWordsButtonsListeners(taskContainer) {
+    const taskId = taskContainer.id.replace('task-', '');
+    // Находим кнопку сброса
+    const resetButton = taskContainer.querySelector('.reset-button');
+
+    // Добавляем обработчик события
+    resetButton.addEventListener('click', () => {
+        // Отправляем сообщение о сбросе
+        sendMessage('reset', 'all', {
+            task_id: taskId,
+            classroom_id: classroomId,
+            type: 'match_words',
         });
-        taskContainer.querySelector(".card-footer").appendChild(resetButton);
+
+        // Сохраняем сброшенное состояние
+        saveUserAnswer(taskId, classroomId, {}, "reset");
     });
-});
 
-document.querySelectorAll('.match-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const taskContainer = this.closest('[data-task-type="match-words"]');
-        const taskId = taskContainer.id.replace('task-', '');
-        const isWord = this.hasAttribute('data-word');
+    const buttons = taskContainer.querySelectorAll('.match-btn');
 
-        // Сброс активных кнопок
-        const columnButtons = isWord
-            ? taskContainer.querySelectorAll('.match-btn[data-word]')
-            : taskContainer.querySelectorAll('.match-btn[data-translation]');
-        columnButtons.forEach(button => button.classList.remove('active'));
+    let selectedWordButton = null; // Выбранная кнопка из первой колонки
+    let selectedTranslationButton = null; // Выбранная кнопка из второй колонки
 
-        this.classList.add('active');
-
-        const activeBtn = taskContainer.querySelector(`.match-btn.active:not([data-word="${this.dataset.word}"]):not([data-translation="${this.dataset.translation}"])`);
-
-        if (activeBtn) {
-            const word = isWord ? this.dataset.word : activeBtn.dataset.word;
-            const translation = isWord ? activeBtn.dataset.translation : this.dataset.translation;
-            console.log(word, translation);
-
-            const correct_pairs = JSON.parse(taskContainer.querySelector('.correct-pairs').dataset.pairs);
-            const isMatchCorrect = checkPairCorrectness(correct_pairs, word, translation);
-
-            const scoreDisplay = taskContainer.querySelector('.score-value');
-            if (isMatchCorrect) {
-                scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) + 1;
-            } else {
-                scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) - 1;
-            }
-            if (scoreDisplay.dataset.realScore >= 0) {
-                scoreDisplay.innerText = scoreDisplay.dataset.realScore;
+    buttons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Если кнопка уже выбрана, ничего не делаем
+            if (button.classList.contains('active')) {
+                return;
             }
 
-            const payload = {
-                task_id: taskId,
-                word: word,
-                translation: translation,
-                score: isMatchCorrect ? 1 : -1,
-            };
+            // Если кнопка из первой колонки (data-word)
+            if (button.hasAttribute('data-word')) {
+                // Если уже выбрана другая кнопка из первой колонки, снимаем выделение
+                if (selectedWordButton) {
+                    selectedWordButton.classList.remove('active');
+                }
+                selectedWordButton = button; // Запоминаем выбранную кнопку
+                button.classList.add('active'); // Добавляем класс active
+            }
 
-            sendMessage('match_pair', 'all', payload);
-            saveUserAnswer(taskId, classroomId, payload);
+            // Если кнопка из второй колонки (data-translation)
+            if (button.hasAttribute('data-translation')) {
+                // Если уже выбрана другая кнопка из второй колонки, снимаем выделение
+                if (selectedTranslationButton) {
+                    selectedTranslationButton.classList.remove('active');
+                }
+                selectedTranslationButton = button; // Запоминаем выбранную кнопку
+                button.classList.add('active'); // Добавляем класс active
+            }
 
-            handlePairMatch(taskId, word, translation);
-        }
+            // Если выбраны обе кнопки (одна из первой колонки и одна из второй)
+            if (selectedWordButton && selectedTranslationButton) {
+                // Получаем значения data-word и data-translation
+                const word = selectedWordButton.getAttribute('data-word');
+                const translation = selectedTranslationButton.getAttribute('data-translation');
+
+                // Убираем класс active
+                selectedWordButton.classList.remove('active');
+                selectedTranslationButton.classList.remove('active');
+
+                // Проверяем, правильно ли сопоставлены слова
+                const isCorrect = checkPairCorrectness(word, translation);
+
+                // Формируем payload
+                const payload = {
+                    task_id: taskId, // Извлекаем task_id из id контейнера
+                    word: word,
+                    translation: translation,
+                    score: isCorrect ? 1 : -1, // 1 за правильный ответ, -1 за неправильный
+                };
+
+                // Отправляем сообщение
+                sendMessage('match_pair', 'all', payload);
+                saveUserAnswer(taskId, classroomId, payload)
+
+                const scoreDisplay = taskContainer.querySelector('.score-value');
+                if (isCorrect) {
+                    scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) + 1;
+                } else {
+                    scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) - 1;
+                }
+                if (scoreDisplay.dataset.realScore >= 0) {
+                    scoreDisplay.innerText = scoreDisplay.dataset.realScore;
+                }
+
+                // Сбрасываем выбранные кнопки
+                selectedWordButton = null;
+                selectedTranslationButton = null;
+            }
+        });
     });
-});
+    // Перемешиваем слова в колонках
+    resizeMatchWords(taskContainer, true);
+}
 
-function handlePairMatch(task_id, word, translation) {
-    const taskContainer = document.getElementById(`task-${task_id}`);
+function checkPairCorrectness(word, translation) {
+    // Находим контейнер с правильными парами
+    const correctPairsContainer = document.querySelector('.correct-pairs');
+    // Получаем данные о правильных парах из атрибута data-pairs
+    const correctPairs = JSON.parse(correctPairsContainer.getAttribute('data-pairs'));
 
-    const correct_pairs = JSON.parse(taskContainer.querySelector('.correct-pairs').dataset.pairs);
-
-    // Выбираем соответствующие кнопки из интерфейса
-    const existingWordButton = taskContainer.querySelector(`[data-word="${word}"]`);
-    const existingTranslationButton = taskContainer.querySelector(`[data-translation="${translation}"]`);
-
-    if (!checkPairCorrectness(correct_pairs, word, translation)) {
-        handleIncorrectMatch(taskContainer, word, translation);
-        existingWordButton.classList.remove('active');
-        existingTranslationButton.classList.remove('active');
-        return;
-    }
-
-    // Создаем новые кнопки для верной пары
-    const pairButtonWord = document.createElement('button');
-    const pairButtonTranslation = document.createElement('button');
-
-    pairButtonWord.className = 'match-btn btn btn-success fs-6 fw-bold w-100 p-2 shadow-sm mb-2';
-    pairButtonTranslation.className = 'match-btn btn btn-success fs-6 fw-bold w-100 p-2 shadow-sm mb-2';
-
-    pairButtonWord.innerText = word;
-    pairButtonTranslation.innerText = translation;
-
-    pairButtonWord.style.pointerEvents = 'none'; // Делаем кнопки некликабельными
-    pairButtonTranslation.style.pointerEvents = 'none';
-
-    // Находим соответствующие колонки
-    const wordColumn = taskContainer.querySelector('.col-6:first-child');
-    const translationColumn = taskContainer.querySelector('.col-6:last-child');
-
-    if (existingWordButton && existingTranslationButton) {
-        existingWordButton.remove();
-        existingTranslationButton.remove();
-
-        // Добавляем кнопки в конец соответствующих колонок
-        wordColumn.appendChild(pairButtonWord);
-        translationColumn.appendChild(pairButtonTranslation);
+    // Проверяем, есть ли такая пара в правильных парах
+    if (correctPairs[word] === translation) {
+        return true;
+    } else {
+        return false;
     }
 }
 
-function handleIncorrectMatch(taskContainer, word, translation) {
-    const wordColumn = taskContainer.querySelector('.col-6:first-child');
-    const translationColumn = taskContainer.querySelector('.col-6:last-child');
+function handlePairSelection(task_id, word, translation, animation=true) {
+    // Определяем контейнер
+    const taskContainer = document.getElementById(`task-${task_id}`);
 
-    const btn1 = wordColumn.querySelector(`[data-word="${word}"]`);
-    const btn2 = translationColumn.querySelector(`[data-translation="${translation}"]`);
-    btn1.classList.add('btn-danger', 'disabled');
-    btn2.classList.add('btn-danger', 'disabled');
-    btn1.classList.remove('btn-outline-primary');
-    btn2.classList.remove('btn-outline-primary');
+    // Проверяем корректность пары
+    const isCorrect = checkPairCorrectness(word, translation);
 
+    // Находим кнопки, соответствующие выбранным слову и переводу
+    const wordButton = taskContainer.querySelector(`.match-btn[data-word="${word}"]`);
+    const translationButton = taskContainer.querySelector(`.match-btn[data-translation="${translation}"]`);
+
+    if (wordButton && translationButton) {
+        if (isCorrect) {
+            // Если пара верна, перемещаем кнопки вниз и применяем стили
+            moveButtonsToBottom(taskContainer, wordButton, translationButton);
+            wordButton.classList.add('btn-success');
+            translationButton.classList.add('btn-success');
+            wordButton.style.pointerEvents = 'none';
+            translationButton.style.pointerEvents = 'none';
+        } else {
+            // Если пара неверна, временно отключаем кнопки и окрашиваем в красный
+            if (animation) {
+                disableButtonsTemporarily(wordButton, translationButton);
+            }
+        }
+    }
+}
+
+// Функция для перемещения кнопок вниз
+function moveButtonsToBottom(taskContainer, button1, button2) {
+    const container = taskContainer.querySelector('.container'); // Контейнер, куда перемещаем кнопки
+
+    // Создаем новую строку
+    const newRow = document.createElement('div');
+    newRow.classList = "row pair mb-2";
+
+    // Добавляем кнопки в новую строку
+    const col1 = document.createElement('div');
+    col1.className = 'col-6';
+    col1.appendChild(button1); // Перемещаем кнопку, не удаляя её из DOM
+
+    const col2 = document.createElement('div');
+    col2.className = 'col-6';
+    col2.appendChild(button2); // Перемещаем кнопку, не удаляя её из DOM
+
+    newRow.appendChild(col1);
+    newRow.appendChild(col2);
+
+    // Добавляем новую строку в конец контейнера
+    container.appendChild(newRow);
+
+    // Применяем стили к кнопкам
+    button1.classList.add('btn-success');
+    button2.classList.add('btn-success');
+    button1.classList.remove('btn-outline-primary');
+    button2.classList.remove('btn-outline-primary');
+    button1.style.pointerEvents = 'none';
+    button2.style.pointerEvents = 'none';
+
+    resizeMatchWords(taskContainer);
+}
+
+// Функция для временного отключения кнопок
+function disableButtonsTemporarily(button1, button2) {
+    button1.classList.remove('btn-outline-primary');
+    button2.classList.remove('btn-outline-primary');
+    button1.classList.add('btn-danger');
+    button2.classList.add('btn-danger');
+    button1.disabled = true;
+    button2.disabled = true;
+
+    // Включаем кнопки через 0.5 секунды
     setTimeout(() => {
-        btn1.classList.remove('btn-danger', 'disabled');
-        btn2.classList.remove('btn-danger', 'disabled');
-        btn1.classList.add('btn-outline-primary');
-        btn2.classList.add('btn-outline-primary');
+        button1.classList.remove('btn-danger');
+        button2.classList.remove('btn-danger');
+        button1.classList.add('btn-outline-primary');
+        button2.classList.add('btn-outline-primary');
+        button1.disabled = false;
+        button2.disabled = false;
     }, 500);
 }
 
-function checkPairCorrectness(correctPairs, word, translation) {
-    return Object.entries(correctPairs).some(
-        ([correctWord, correctTranslation]) =>
-            correctWord === word && correctTranslation === translation
-    );
-}
+function resizeMatchWords(taskContainer, shouldShuffle=false) {
+    // Находим все кнопки, которые не имеют класса btn-success
+    const buttons = taskContainer.querySelectorAll('.match-btn:not(.btn-success)');
 
-function shuffleWords(taskContainer) {
-    const columns = taskContainer.querySelectorAll(".col-6");
-    if (columns.length < 2) return;
+    // Разделяем кнопки на два массива: wordButtons и translationButtons
+    let wordButtons = [];
+    let translationButtons = [];
 
-    const [wordColumn, translationColumn] = columns;
-
-    // Сохраняем исходные пары перед перемешиванием
-    const originalPairs = Array.from(
-        taskContainer.querySelectorAll('.match-btn[data-word]')
-    ).map(btn => ({
-        word: btn.dataset.word,
-        translation: btn.closest('.task-container')
-            .querySelector(`[data-translation="${btn.dataset.word}"]`)
-            ?.dataset.translation
-    }));
-
-    // Перемешиваем элементы в колонках
-    shuffleArray(wordColumn.children);
-    shuffleArray(translationColumn.children);
-
-    // Выравниваем высоты по позициям
-    syncHeightsByPosition(taskContainer);
-}
-
-// Новая функция для синхронизации высот по позициям
-function syncHeightsByPosition(taskContainer) {
-    const wordButtons = Array.from(
-        taskContainer.querySelectorAll('.col-6:first-child .match-btn')
-    );
-    const transButtons = Array.from(
-        taskContainer.querySelectorAll('.col-6:last-child .match-btn')
-    );
-
-    const maxLength = Math.max(wordButtons.length, transButtons.length);
-
-    for (let i = 0; i < maxLength; i++) {
-        const wordBtn = wordButtons[i];
-        const transBtn = transButtons[i];
-
-        if (!wordBtn || !transBtn) continue;
-
-        // Сбрасываем высоты перед расчетом
-        wordBtn.style.height = '';
-        transBtn.style.height = '';
-
-        // Получаем натуральные высоты
-        const wordHeight = wordBtn.offsetHeight;
-        const transHeight = transBtn.offsetHeight;
-
-        // Устанавливаем максимальную высоту
-        const maxHeight = Math.max(wordHeight, transHeight);
-        wordBtn.style.height = `${maxHeight}px`;
-        transBtn.style.height = `${maxHeight}px`;
-    }
-}
-
-// Вспомогательная функция для перемешивания DOM элементов
-function shuffleArray(parent) {
-    const children = Array.from(parent.children);
-    for (let i = children.length; i >= 0; i--) {
-        parent.appendChild(children[Math.random() * i | 0]);
-    }
-}
-
-// Обновляем обработчики событий
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.task-container').forEach(syncHeightsByPosition);
-});
-
-window.addEventListener('resize', () => {
-    document.querySelectorAll('.task-container').forEach(container => {
-        Array.from(container.querySelectorAll('.match-btn')).forEach(btn => {
-            btn.style.height = ''; // Сброс перед перерасчетом
-        });
-        syncHeightsByPosition(container);
+    buttons.forEach(button => {
+        if (button.hasAttribute('data-word')) {
+            wordButtons.push(button);
+        } else if (button.hasAttribute('data-translation')) {
+            translationButtons.push(button);
+        }
     });
-});
 
-// Функция для сброса задания
-function resetMatchWordsTask(task_id) {
+    if (shouldShuffle) {
+        const { shuffledWordButtons, shuffledTranslationButtons } = shuffleArrays(wordButtons, translationButtons);
+        wordButtons = shuffledWordButtons; // Обновляем исходные массивы
+        translationButtons = shuffledTranslationButtons;
+    }
+
+    // Находим контейнер
+    const container = taskContainer.querySelector('.container');
+
+    // Удаляем старые строки, которые не содержат кнопок с btn-success
+    const oldRows = container.querySelectorAll('.row.pair.mb-2');
+    oldRows.forEach(row => {
+        if (!row.querySelector('.btn-success')) {
+            row.remove(); // Удаляем строку, если в ней нет кнопок с btn-success
+        }
+    });
+
+    // Создаем новые строки и добавляем кнопки сверху
+    for (let i = Math.max(wordButtons.length, translationButtons.length); i >= 0; i--) {
+        const newRow = document.createElement('div');
+        newRow.className = 'row pair mb-2';
+
+        // Добавляем кнопку из левой колонки (wordButtons)
+        const col1 = document.createElement('div');
+        col1.className = 'col-6';
+        if (wordButtons[i]) {
+            col1.appendChild(wordButtons[i]); // Перемещаем кнопку
+        }
+        newRow.appendChild(col1);
+
+        // Добавляем кнопку из правой колонки (translationButtons)
+        const col2 = document.createElement('div');
+        col2.className = 'col-6';
+        if (translationButtons[i]) {
+            col2.appendChild(translationButtons[i]); // Перемещаем кнопку
+        }
+        newRow.appendChild(col2);
+
+        // Вставляем новую строку в начало контейнера
+        if (container.firstChild) {
+            container.insertBefore(newRow, container.firstChild);
+        } else {
+            container.appendChild(newRow);
+        }
+    }
+}
+
+function shuffleArrays(wordButtons, translationButtons) {
+    // Функция для перемешивания массива (алгоритм Фишера-Йетса)
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1)); // Случайный индекс от 0 до i
+            [array[i], array[j]] = [array[j], array[i]]; // Меняем местами элементы
+        }
+        return array;
+    }
+
+    // Перемешиваем кнопки внутри своих колонок
+    const shuffledWordButtons = shuffle([...wordButtons]);
+    const shuffledTranslationButtons = shuffle([...translationButtons]);
+
+    return {
+        shuffledWordButtons,
+        shuffledTranslationButtons,
+    };
+}
+
+function resetMatchWordsTask(taskId) {
+    // Находим контейнер задачи
+    const taskContainer = document.getElementById(`task-${taskId}`);
+    if (!taskContainer) {
+        console.error(`Контейнер с id "task-${taskId}" не найден.`);
+        return;
+    }
+
+    // Возвращаем кнопкам исходные стили и включаем их
+    const buttons = taskContainer.querySelectorAll('.match-btn');
+    buttons.forEach(button => {
+        button.classList.remove('btn-success', 'btn-danger', 'active'); // Убираем все дополнительные классы
+        button.classList.add('btn-outline-primary'); // Возвращаем исходный стиль
+        button.style.pointerEvents = 'auto'; // Включаем кнопки
+        button.disabled = false; // Включаем кнопки, если они были отключены
+    });
+
+    // Перемешиваем слова
+    resizeMatchWords(taskContainer, true);
+
+    const scoreDisplay = taskContainer.querySelector('.score-value');
+    scoreDisplay.innerText = 0;
+    scoreDisplay.dataset.realScore = 0;
+}
+
+function matchPairsScoreUpdate(task_id, score) {
     const taskContainer = document.getElementById(`task-${task_id}`);
-    const correctPairs = JSON.parse(taskContainer.querySelector('.correct-pairs').dataset.pairs);
+    const scoreDisplay = taskContainer.querySelector('.score-value');
+    const maxScore = taskContainer.querySelector('.correct-pairs').dataset.maxScore;
 
-    // Очищаем текущие кнопки
-    const columns = taskContainer.querySelectorAll(".col-6");
-    columns.forEach(column => column.innerHTML = "");
-
-    // Восстанавливаем все кнопки
-    Object.keys(correctPairs).forEach(word => {
-        const wordButton = document.createElement('button');
-        wordButton.className = 'match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2';
-        wordButton.innerText = word;
-        wordButton.setAttribute('data-word', word);
-        columns[0].appendChild(wordButton);
-
-        const translationButton = document.createElement('button');
-        translationButton.className = 'match-btn btn btn-outline-primary fs-6 fw-bold w-100 p-2 shadow-sm mb-2';
-        translationButton.innerText = correctPairs[word];
-        translationButton.setAttribute('data-translation', correctPairs[word]);
-        columns[1].appendChild(translationButton);
-    });
-
-    // Обнуляем счет
-    const scoreElement = taskContainer.querySelector(".score-value");
-    if (scoreElement) {
-        scoreElement.textContent = "0";
-        scoreElement.setAttribute("data-real-score", "0");
+    scoreDisplay.dataset.realScore = score;
+    if (score <= maxScore && score >= 0) {
+        scoreDisplay.innerText = score;
+    } else {
+        if (score < 0) {
+            scoreDisplay.innerText = 0;
+        } else {
+            scoreDisplay.innerText = maxScore;
+        }
     }
-
-    // Перемешиваем слова заново
-    shuffleWords(taskContainer);
 }
+
+const taskContainers = document.querySelectorAll("[data-task-type='match-words']");
+taskContainers.forEach(taskContainer => {
+    addMatchWordsButtonsListeners(taskContainer);
+});
+

@@ -1,17 +1,67 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    {% for item in task.content_object.words %}
-    <div class="word-block">
-        <div class="puzzle-container">
-            {% for letter in item.shuffled_word %}
-            <div class="puzzle-piece">{{ letter }}</div>
-            {% endfor %}
+{% load custom_filters %}
+
+<div class="task-item" id="task-{{ task.id }}" data-task-type="unscramble">
+    <div class="card mb-3 border-0 shadow-lg rounded-3">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0 text-primary">{{ task.content_object.title }}</h3>
+            <span class="badge bg-primary text-white fs-6">Unscramble Task</span>
         </div>
-        <p class="correct-word">(Правильное слово: <strong>{{ item.word }}</strong>)</p>
-        {% if item.hint %}
-        <p class="hint-text"><em>Подсказка: {{ item.hint }}</em></p>
-        {% endif %}
+        <div class="card-body bg-light bg-opacity-50 p-4">
+            <div class="container">
+                <div class="row">
+                    <div class="col-12 text-center">
+                        <p class="fs-4 mb-3">{{ task.content_object.description }}</p>
+                    </div>
+                    {% for scrambled_word in task.content_object.words %}
+                        <div class="row mb-3">
+                            <div class="col-12 text-center">
+                                <p class="fs-5 mb-2">Слово: {{ scrambled_word.original_word }}</p>
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex justify-content-center">
+                                    <!-- Поле для букв слова -->
+                                    <div class="word-field d-flex flex-wrap gap-2">
+                                        {% for letter in scrambled_word.letters %}
+                                            <input
+                                                type="text"
+                                                class="letter-input form-control form-control-sm"
+                                                maxlength="1"
+                                                readonly
+                                            >
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
+                                <!-- Буквы в разбросанном порядке -->
+                                <div class="d-flex justify-content-center">
+                                    <div class="scrambled-letters d-flex flex-wrap gap-2">
+                                        {% for letter in scrambled_word.scrambled_letters %}
+                                            <button
+                                                class="scrambled-letter btn btn-outline-primary fs-6 fw-bold"
+                                                data-letter="{{ letter }}"
+                                            >{{ letter }}</button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="card-footer bg-white text-center py-3">
+            <div class="fs-5 fw-bold">
+                <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.words|length }} баллов
+            </div>
+        </div>
     </div>
-    {% endfor %}
+    <div class="action-buttons d-flex justify-content-end mb-4 align-items-center">
+        <button class="btn btn-warning reset-button me-2">Сбросить
+        </button>
+        <button class="btn btn-danger hide-button">Смотреть
+        </button>
+    </div>
+    <div class="correct-words d-none" data-words="{{ task.content_object.words|to_json }}" data-max-score="{{ task.content_object.words|length }}"></div>
 </div>

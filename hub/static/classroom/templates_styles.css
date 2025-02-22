@@ -10,8 +10,6 @@ body {
 }
 
 .task-item {
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 245, 245, 0.9));
-    border-radius: 15px;
     transition: transform 0.2s;
 }
 
@@ -23,88 +21,20 @@ body {
     border-bottom: 2px solid rgba(0, 123, 255, 0.1);
 }
 
-.word-column, .translation-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem; /* Пространство между строками */
-}
-
 .match-btn {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
     text-align: center;
 }
 
-.column1, .column2 {
-    display: flex;
-    flex-direction: column;
-    justify-content: start;
-    height: 100%;
-    align-items: stretch;
-}
-
-
-.list-group-item {
-    border-radius: 8px;
-    transition: background-color 0.3s ease, transform 0.2s;
-}
-
-.list-group-item:hover {
-    background-color: rgba(126, 211, 33, 0.2); /* Светло-зеленый */
-    transform: scale(1.05); /* Легкое увеличение при наведении */
-}
-
-.list-group-item.active {
-    background-color: rgba(126, 211, 33, 0.3); /* Цвет для активного элемента */
-    color: white;
-}
-
-.list-group-item-action {
-    cursor: pointer;
-}
-
-.avatar-circle {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.5rem;
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.avatar-circle:hover {
-    transform: scale(1.1);
-}
-
-.crown-icon {
-    font-size: 1rem;
-    transform: translate(50%, -50%);
-}
-
-.overflow-auto {
-    scroll-behavior: smooth;
-}
 .match-btn.active {
-    background-color: #FFD166; /* Яркий желтый фон */
-    border-color: #E1A800; /* Чуть темнее для контраста */
-    color: #5A3E02; /* Глубокий коричневатый оттенок для текста */
-    font-weight: 600; /* Немного жирнее для акцента */
-    transform: scale(1.005); /* Легкое увеличение при выборе */
-    transition: all 0.2s ease-in-out; /* Плавный эффект */
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
 }
 
 
 .match-btn:disabled {
     opacity: 1;
-}
-
-.bi-arrow-right {
-    font-size: 0.8em;
-    vertical-align: middle;
 }

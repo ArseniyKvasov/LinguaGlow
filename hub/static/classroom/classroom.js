@@ -58,7 +58,6 @@ async function saveUserAnswer(taskId, classroomId, payloads, request_type=null) 
 
         if (response.ok) {
             const result = await response.json();
-            console.log(result.success);
         } else {
             const error = await response.json();
             console.error(error);
@@ -123,7 +122,7 @@ socket.onmessage = function (event) {
         showToast(`${data.sender} вошел в класс!`);
     } else if (data.message_type === 'match_pair') {
         const payloads = data.payloads;
-        handlePairMatch(payloads.task_id, payloads.word, payloads.translation, false);
+        handlePairSelection(payloads.task_id, payloads.word, payloads.translation);
     } else {
         console.log(`Received message: ${JSON.stringify(data)}`);
     }
@@ -152,9 +151,9 @@ async function loadSavedTasks(taskContainer, type) {
             if (type === 'match-words') {
                 data.pairs.forEach(pair => {
                     // pair — это массив, где pair[0] — слово, pair[1] — перевод
-                    handlePairMatch(taskId, pair[0], pair[1], true);
+                    handlePairSelection(taskId, pair[0], pair[1], false);
                 });
-                //matchPairsScoreCounter(taskId, data.score);
+                matchPairsScoreUpdate(taskId, data.score);
             }
         }
     } catch (error) {

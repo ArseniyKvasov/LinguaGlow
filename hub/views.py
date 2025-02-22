@@ -852,6 +852,7 @@ def save_user_answer_view(request):
             classroom_id = data.get('classroom_id')
             payloads = data.get('payloads')
             request_type = data.get('request_type', None)
+            print(task_id, classroom_id, payloads, request_type)
 
             if request_type:
                 with transaction.atomic():
@@ -882,6 +883,8 @@ def process_user_answer(task_id, classroom_id, user, payloads):
 
     if content_type.model_class() == MatchUpTheWords:
         update_match_up_the_words_answer(user_answer, payloads)
+    elif content_type.model_class() == Unscramble:
+        update_unscramble_answer(user_answer, payloads)
 
 def process_multiple_users_answers(task_id, classroom_id, request_type):
     task_instance = BaseTask.objects.get(id=task_id)
@@ -918,6 +921,23 @@ def update_match_up_the_words_answer(user_answer, payloads):
 
     user_answer.answer_data = answer_data
     print('saving result', user_answer.answer_data, user_answer.score)
+    user_answer.updated_at = timezone.now()
+    user_answer.save()
+
+def update_unscramble_answer(user_answer, payloads):
+    word = payloads['word']
+    score = payloads['score']
+
+    answer_data = user_answer.answer_data
+    word_entry = next((item for item in answer_data if item['original_word'].lower() == word.lower()), None)
+
+    if word_entry:
+        word_entry['score'] += score
+    else:
+        answer_data.append({'original_word': word, 'score': score})
+
+    user_answer.answer_data = answer_data
+    user_answer.score += score
     user_answer.updated_at = timezone.now()
     user_answer.save()
 
@@ -976,6 +996,51 @@ def get_solved_tasks(request):
             return JsonResponse({
                 'status': 'success',
                 'type': 'match-words',
+                'student_pairs': student_pairs,  # Все ответы ученика
+                'teacher_pairs': teacher_pairs,  # Все ответы учителей
+                'pairs': pairs,  # Разность объединенного и пересечения
+                'score': user_answers.score if user_answers else 0,
+            })
+
+        elif type == 'unscramble':
+            student_pairs = []  # Ответы ученика (с дубликатами)
+            teacher_pairs = []  # Ответы учителей (с дубликатами)
+
+            # Получаем ответы ученика
+            user_answers = UserAnswer.objects.filter(
+                task_id=task_id,
+                classroom_id=classroom_id,
+                user=user
+            ).first()
+
+            if user_answers:
+                for pair in user_answers.answer_data:
+                    if 'original_word' in pair:
+                        student_pairs.append(pair['original_word'])
+
+            # Получаем ответы учителей
+            for teacher in teachers:
+                teacher_answers = UserAnswer.objects.filter(
+                    task_id=task_id,
+                    classroom_id=classroom_id,
+                    user=teacher
+                ).first()
+
+                if teacher_answers:
+                    for pair in teacher_answers.answer_data:
+                        if 'original_word' in pair:
+                            teacher_pairs.append(pair['original_word'])
+
+            # Преобразуем списки в множества для работы с пересечением/разностью
+            student_set = set(student_pairs)
+            teacher_set = set(teacher_pairs)
+
+            # Pairs = (student_pairs ∪ teacher_pairs) без дубликатов
+            pairs = list(student_set | teacher_set)
+
+            return JsonResponse({
+                'status': 'success',
+                'type': 'unscramble',
                 'student_pairs': student_pairs,  # Все ответы ученика
                 'teacher_pairs': teacher_pairs,  # Все ответы учителей
                 'pairs': pairs,  # Разность объединенного и пересечения
