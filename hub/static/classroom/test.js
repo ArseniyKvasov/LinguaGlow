@@ -1,127 +1,146 @@
-function addUnscrambleButtonsListeners(taskContainer) {
-    const taskId = taskContainer.id.replace('task-', '');
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".letter-button").forEach(button => {
+        const taskItem = button.closest(".task-item");
+        const taskId = taskItem.id.replace("task-", "");
 
-    // Находим кнопку сброса
-    const resetButton = taskContainer.querySelector('.reset-button');
-    resetButton.addEventListener('click', () => {
-        sendMessage('reset', 'all', { task_id: taskId, classroom_id: classroomId, type: 'unscramble' });
-        saveUserAnswer(taskId, classroomId, {}, "reset");
-    });
+        button.addEventListener("click", function() {
+            const wordContainer = this.closest(".word-container");
+            const emptySlot = wordContainer.querySelector(".empty-slot");
+            const expectedLetter = emptySlot?.dataset.expected;
+            const crossIcons = wordContainer.querySelectorAll(".bi-x-circle");
+            const errorCount = parseInt(wordContainer.dataset.errors || 0);
 
-    // Находим все кнопки с буквами
-    const letterButtons = taskContainer.querySelectorAll('.scrambled-letter');
-    const letterInputs = taskContainer.querySelectorAll('.letter-input');
+            if (emptySlot && expectedLetter) {
+                // Проверяем корректность буквы
+                if (this.dataset.letter === expectedLetter) {
+                    // Правильный ввод
+                    emptySlot.textContent = this.dataset.letter;
+                    emptySlot.classList.remove("empty-slot");
+                    emptySlot.classList.add("active-slot");
+                    this.disabled = true;
 
-    // Обработчики событий для кнопок с буквами
-    letterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const letter = button.getAttribute('data-letter');
-            const firstEmptyInput = Array.from(letterInputs).find(input => input.value === '');
-            if (firstEmptyInput) {
-                firstEmptyInput.value = letter;
-                button.classList.add('disabled');
-                button.disabled = true;
+                    // Проверяем завершение слова
+                    if (!wordContainer.querySelector(".empty-slot")) {
+                        wordContainer.querySelector(".word-fields").classList.add("bg-success", "bg-opacity-25");
+                        wordContainer.querySelectorAll(".letter-button").forEach(btn => btn.disabled = true);
+                    }
+
+                    // Сохранение прогресса
+                    saveUserAnswer(taskId, classroomId, {
+                        letter: this.dataset.letter,
+                        word_index: Array.from(taskItem.querySelectorAll(".word-container")).indexOf(wordContainer)
+                    });
+                } else {
+                    // Неправильный ввод
+                    wordContainer.dataset.errors = errorCount + 1;
+
+                    // Анимация ошибки
+                    crossIcons[errorCount].classList.add("text-danger");
+                    emptySlot.classList.add("invalid");
+
+                    emptySlot.textContent = "";
+                    emptySlot.classList.add("empty-slot");
+                    emptySlot.classList.remove("active-slot");
+                    this.disabled = false;
+
+                    // Обработка трех ошибок
+                    if (errorCount + 1 >= 3) {
+                        showWordAndReset(wordContainer);
+                        saveUserAnswer(taskId, classroomId, {
+                                letter: this.dataset.letter,
+                                word_index: Array.from(taskItem.querySelectorAll(".word-container")).indexOf(wordContainer)
+                            }, "reset_word")
+                    }
+                }
             }
         });
     });
-
-    // Обработчики событий для полей букв
-    letterInputs.forEach(input => {
-        input.addEventListener('click', () => {
-            const letter = input.value;
-            const scrambledLetterButton = Array.from(letterButtons).find(button => button.getAttribute('data-letter') === letter);
-            if (scrambledLetterButton) {
-                input.value = '';
-                scrambledLetterButton.classList.remove('disabled');
-                scrambledLetterButton.disabled = false;
-            }
-        });
-    });
-
-    // Кнопка "Проверить"
-    const checkButton = taskContainer.querySelector('.check-button');
-    checkButton.addEventListener('click', () => {
-        const correctLetters = Array.from(letterInputs).map(input => input.value);
-        const correctWord = correctLetters.join('');
-        const correctWordsContainer = taskContainer.querySelector('.correct-words');
-        const correctWords = JSON.parse(correctWordsContainer.getAttribute('data-words'));
-
-        // Проверяем правильность слова
-        const isCorrect = correctWords.some(word => word.original_word.toLowerCase() === correctWord.toLowerCase());
-
-        if (isCorrect) {
-            highlightCorrectLetters(letterInputs, 'bg-success');
-            moveToNextWord(taskContainer, taskId);
-        } else {
-            highlightIncorrectLetters(letterInputs, 'bg-danger');
-            setTimeout(() => {
-                highlightIncorrectLetters(letterInputs, 'bg-light');
-            }, 500);
-        }
-    });
-}
-
-// Функция для подсветки правильных букв зелёным
-function highlightCorrectLetters(inputs, className) {
-    inputs.forEach(input => input.classList.add(className));
-}
-
-// Функция для подсветки неправильных букв красным
-function highlightIncorrectLetters(inputs, className) {
-    inputs.forEach(input => input.classList.add(className));
-}
-
-// Функция для перехода к следующему слову
-function moveToNextWord(taskContainer, taskId) {
-    const correctWordsContainer = taskContainer.querySelector('.correct-words');
-    const correctWords = JSON.parse(correctWordsContainer.getAttribute('data-words'));
-    const currentWordIndex = Array.from(taskContainer.querySelectorAll('.word-field')).indexOf(taskContainer.querySelector('.word-field.active'));
-    const nextWordIndex = (currentWordIndex + 1) % correctWords.length;
-
-    // Переключаем активное слово
-    Array.from(taskContainer.querySelectorAll('.word-field')).forEach(field => field.classList.remove('active'));
-    Array.from(taskContainer.querySelectorAll('.scrambled-letters')).forEach(field => field.classList.remove('active'));
-    Array.from(taskContainer.querySelectorAll('.word-field'))[nextWordIndex].classList.add('active');
-    Array.from(taskContainer.querySelectorAll('.scrambled-letters'))[nextWordIndex].classList.add('active');
-}
-
-// Функция для сброса задания
-function resetUnscrambleTask(taskId) {
-    const taskContainer = document.getElementById(`task-${taskId}`);
-    const letterButtons = taskContainer.querySelectorAll('.scrambled-letter');
-    const letterInputs = taskContainer.querySelectorAll('.letter-input');
-
-    letterButtons.forEach(button => {
-        button.classList.remove('disabled');
-        button.disabled = false;
-    });
-
-    letterInputs.forEach(input => {
-        input.value = '';
-    });
-
-    moveToNextWord(taskContainer, taskId);
-}
-
-// Функция для обновления счета
-function updateUnscrambleScore(task_id, score) {
-    const taskContainer = document.getElementById(`task-${task_id}`);
-    const scoreDisplay = taskContainer.querySelector('.score-value');
-    const maxScore = taskContainer.querySelector('.correct-words').dataset.maxScore;
-    scoreDisplay.dataset.realScore = score;
-    if (score <= maxScore && score >= 0) {
-        scoreDisplay.innerText = score;
-    } else {
-        if (score < 0) {
-            scoreDisplay.innerText = 0;
-        } else {
-            scoreDisplay.innerText = maxScore;
-        }
-    }
-}
-
-// Добавляем обработчики событий для всех контейнеров заданий
-const taskContainers = document.querySelectorAll("[data-task-type='unscramble']");
-taskContainers.forEach(taskContainer => {
-    addUnscrambleButtonsListeners(taskContainer);
 });
+
+function insertWords(words, taskId) {
+    console.log(words);
+    const taskElement = document.getElementById(`task-${taskId}`);
+    if (!taskElement) return;
+
+    const wordContainers = taskElement.querySelectorAll(".word-container");
+
+    words.forEach((wordData, wordIndex) => {
+        if (wordIndex >= wordContainers.length) return;
+
+        const wordContainer = wordContainers[wordIndex];
+        const emptySlots = wordContainer.querySelectorAll(".empty-slot");
+        const letterButtons = wordContainer.querySelectorAll(".letter-button");
+        const crossIcons = wordContainer.querySelectorAll(".bi-x-circle");
+
+        // Сбрасываем ошибки и крестики
+        wordContainer.dataset.errors = 0;
+        crossIcons.forEach(icon => icon.classList.remove("text-danger"));
+
+        wordData.letters.forEach((letter, letterIndex) => {
+            if (letterIndex < emptySlots.length) {
+                const emptySlot = emptySlots[letterIndex];
+                const expectedLetter = emptySlot.dataset.expected;
+
+                // Если буква введена
+                if (letter) {
+                    // Проверяем, совпадает ли введённая буква с ожидаемой
+                    if (letter === expectedLetter) {
+                        // Отключаем кнопку с правильной буквой
+                        const button = [...letterButtons].find(btn => btn.dataset.letter === letter && !btn.disabled);
+                        if (button) button.disabled = true;
+                        emptySlot.textContent = letter;
+                        emptySlot.classList.remove("empty-slot");
+                        emptySlot.classList.add("active-slot");
+                    } else {
+                        // Неправильная буква: увеличиваем счётчик ошибок и подсвечиваем крестик
+                        const errorCount = parseInt(wordContainer.dataset.errors || 0);
+                        wordContainer.dataset.errors = errorCount + 1;
+
+                        if (crossIcons[errorCount]) {
+                            crossIcons[errorCount].classList.add("text-danger");
+                        }
+
+                        // Если ошибок 3, сбрасываем слово
+                        if (errorCount + 1 >= 3) {
+                            showWordAndReset(wordContainer);
+                        }
+                    }
+                }
+            }
+        });
+    });
+}
+
+function showWordAndReset(wordContainer) {
+    const slots = wordContainer.querySelectorAll(".empty-slot, .active-slot");
+    const originalWord = wordContainer.querySelector(".word-fields").dataset.word;
+
+    // Показываем правильное слово
+    slots.forEach((slot, index) => {
+        slot.textContent = originalWord[index];
+        slot.classList.remove("empty-slot");
+        slot.classList.add("active-slot");
+        slot.classList.add("bg-success", "bg-opacity-25");
+    });
+
+    setTimeout(() => {
+        // Сбрасываем состояние
+        slots.forEach(slot => {
+            slot.textContent = "";
+            slot.classList.remove("active-slot");
+            slot.classList.add("empty-slot");
+            slot.classList.remove("bg-success", "bg-opacity-25", "invalid");
+        });
+
+        // Восстанавливаем кнопки
+        wordContainer.querySelectorAll(".letter-button").forEach(btn => {
+            btn.disabled = false;
+        });
+
+        // Сбрасываем крестики
+        wordContainer.dataset.errors = 0;
+        wordContainer.querySelectorAll(".bi-x-circle").forEach(icon => {
+            icon.classList.remove("text-danger");
+        });
+    }, 3000);
+}

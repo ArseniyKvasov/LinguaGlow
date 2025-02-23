@@ -123,6 +123,18 @@ socket.onmessage = function (event) {
     } else if (data.message_type === 'match_pair') {
         const payloads = data.payloads;
         handlePairSelection(payloads.task_id, payloads.word, payloads.translation);
+    } else if (data.message_type === "letter_selected") {
+        let taskElement = document.getElementById(`task-${data.payloads.task_id}`);
+        if (taskElement) {
+            let emptySlot = taskElement.querySelector(".empty-slot");
+            let letterButton = taskElement.querySelector(`.letter-button[data-letter='${data.payloads.letter}']`);
+
+            if (emptySlot && letterButton) {
+                emptySlot.textContent = data.payloads.letter;
+                emptySlot.classList.remove("empty-slot");
+                letterButton.disabled = true;
+            }
+        }
     } else {
         console.log(`Received message: ${JSON.stringify(data)}`);
     }
@@ -154,6 +166,8 @@ async function loadSavedTasks(taskContainer, type) {
                     handlePairSelection(taskId, pair[0], pair[1], false);
                 });
                 matchPairsScoreUpdate(taskId, data.score);
+            } else if (type === 'unscramble') {
+                insertWords(data.words, taskId);
             }
         }
     } catch (error) {
@@ -163,7 +177,14 @@ async function loadSavedTasks(taskContainer, type) {
 
 // Инициализация после загрузки страницы
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('[data-task-type="match-words"]').forEach(taskContainer => {
-        loadSavedTasks(taskContainer, 'match-words');
+    const taskContainers = document.querySelectorAll(".task-item");
+    taskContainers.forEach(taskContainer => {
+        if (taskContainer.dataset.taskType === "match-words") {
+            addMatchWordsButtonsListeners(taskContainer);
+            loadSavedTasks(taskContainer, 'match-words');
+        } else if (taskContainer.dataset.taskType === "unscramble") {
+            loadSavedTasks(taskContainer, 'unscramble');
+        }
     });
 });
+

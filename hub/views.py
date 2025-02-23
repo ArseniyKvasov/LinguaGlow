@@ -854,13 +854,15 @@ def save_user_answer_view(request):
             request_type = data.get('request_type', None)
             print(task_id, classroom_id, payloads, request_type)
 
-            if request_type:
+
+            multiple_requests = ["reset"]
+            if request_type in multiple_requests:
                 with transaction.atomic():
                     process_multiple_users_answers(task_id, classroom_id, request_type)
                 return JsonResponse({'status': 'success'})
             elif task_id:
                 with transaction.atomic():
-                    process_user_answer(task_id, classroom_id, request.user, payloads)
+                    process_user_answer(task_id, classroom_id, request.user, payloads, request_type)
                 return JsonResponse({'status': 'success'})
             else:
                 return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
@@ -869,7 +871,7 @@ def save_user_answer_view(request):
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
-def process_user_answer(task_id, classroom_id, user, payloads):
+def process_user_answer(task_id, classroom_id, user, payloads, request_type):
     task_instance = BaseTask.objects.get(id=task_id)
     classroom_instance = Classroom.objects.get(id=classroom_id)
 
@@ -880,21 +882,38 @@ def process_user_answer(task_id, classroom_id, user, payloads):
         user=user,
         defaults={'answer_data': [], 'updated_at': timezone.now(), 'score': 0}
     )
-
+    print(content_type.model_class() == Unscramble)
     if content_type.model_class() == MatchUpTheWords:
         update_match_up_the_words_answer(user_answer, payloads)
     elif content_type.model_class() == Unscramble:
-        update_unscramble_answer(user_answer, payloads)
+        update_unscramble_answer(user_answer, payloads, request_type)
+
 
 def process_multiple_users_answers(task_id, classroom_id, request_type):
     task_instance = BaseTask.objects.get(id=task_id)
     classroom_instance = Classroom.objects.get(id=classroom_id)
     classroom_users = list(classroom_instance.teachers.all()) + list(classroom_instance.students.all())
+    content_type = ContentType.objects.get_for_model(task_instance.content_object)
+
     if request_type == "reset":
         for user in classroom_users:
-            user_answer = UserAnswer.objects.filter(task=task_instance, classroom=classroom_instance, user=user).first()
+            user_answer = UserAnswer.objects.filter(
+                task=task_instance,
+                classroom=classroom_instance,
+                user=user
+            ).first()
+
             if user_answer:
-                user_answer.answer_data = []
+                # Сбрасываем в начальное состояние в зависимости от типа задания
+                if content_type.model_class() == MatchUpTheWords:
+                    user_answer.answer_data = []
+                elif content_type.model_class() == Unscramble:
+                    user_answer.answer_data = {
+                        'current_word_index': 0,
+                        'score': 0,
+                        'answers': []
+                    }
+
                 user_answer.score = 0
                 user_answer.save()
 
@@ -924,22 +943,34 @@ def update_match_up_the_words_answer(user_answer, payloads):
     user_answer.updated_at = timezone.now()
     user_answer.save()
 
-def update_unscramble_answer(user_answer, payloads):
-    word = payloads['word']
-    score = payloads['score']
 
-    answer_data = user_answer.answer_data
-    word_entry = next((item for item in answer_data if item['original_word'].lower() == word.lower()), None)
+def update_unscramble_answer(user_answer, payloads, request_type):
+    word_index = payloads.get("word_index")  # Какое слово обновляем
+    letter = payloads.get("letter")
 
-    if word_entry:
-        word_entry['score'] += score
-    else:
-        answer_data.append({'original_word': word, 'score': score})
+    # Загружаем сохраненные ответы или создаем новый список
+    answer_data = user_answer.answer_data or {"words": []}
 
+    # Убеждаемся, что нужное слово есть в списке
+    while len(answer_data["words"]) <= word_index:
+        answer_data["words"].append({"word": "", "letters": []})
+
+    # Обновляем буквы в нужном слове
+    word_data = answer_data["words"][word_index]
+    if request_type == "reset_word":
+        word_data["letters"] = []
+
+    elif letter:
+        word_data["letters"].append(letter)
+        word_data["word"] = "".join(word_data["letters"])
+
+    # Сохраняем обновленные данные
     user_answer.answer_data = answer_data
-    user_answer.score += score
     user_answer.updated_at = timezone.now()
     user_answer.save()
+
+    print(f"Updated unscramble answer: {user_answer.answer_data}")
+
 
 
 @login_required
@@ -1003,48 +1034,21 @@ def get_solved_tasks(request):
             })
 
         elif type == 'unscramble':
-            student_pairs = []  # Ответы ученика (с дубликатами)
-            teacher_pairs = []  # Ответы учителей (с дубликатами)
-
-            # Получаем ответы ученика
-            user_answers = UserAnswer.objects.filter(
+            # Получаем ответ пользователя
+            user_answer = UserAnswer.objects.filter(
                 task_id=task_id,
                 classroom_id=classroom_id,
                 user=user
             ).first()
 
-            if user_answers:
-                for pair in user_answers.answer_data:
-                    if 'original_word' in pair:
-                        student_pairs.append(pair['original_word'])
-
-            # Получаем ответы учителей
-            for teacher in teachers:
-                teacher_answers = UserAnswer.objects.filter(
-                    task_id=task_id,
-                    classroom_id=classroom_id,
-                    user=teacher
-                ).first()
-
-                if teacher_answers:
-                    for pair in teacher_answers.answer_data:
-                        if 'original_word' in pair:
-                            teacher_pairs.append(pair['original_word'])
-
-            # Преобразуем списки в множества для работы с пересечением/разностью
-            student_set = set(student_pairs)
-            teacher_set = set(teacher_pairs)
-
-            # Pairs = (student_pairs ∪ teacher_pairs) без дубликатов
-            pairs = list(student_set | teacher_set)
+            if not user_answer:
+                return JsonResponse({'status': 'not_found', 'words': []})
 
             return JsonResponse({
                 'status': 'success',
                 'type': 'unscramble',
-                'student_pairs': student_pairs,  # Все ответы ученика
-                'teacher_pairs': teacher_pairs,  # Все ответы учителей
-                'pairs': pairs,  # Разность объединенного и пересечения
-                'score': user_answers.score if user_answers else 0,
+                'words': user_answer.answer_data.get("words", []),  # Список слов с буквами
+                'score': user_answer.score
             })
 
     except Classroom.DoesNotExist:

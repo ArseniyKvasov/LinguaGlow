@@ -315,8 +315,3 @@ function matchPairsScoreUpdate(task_id, score) {
     }
 }
 
-const taskContainers = document.querySelectorAll("[data-task-type='match-words']");
-taskContainers.forEach(taskContainer => {
-    addMatchWordsButtonsListeners(taskContainer);
-});
-

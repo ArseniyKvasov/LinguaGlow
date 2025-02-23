@@ -1,4 +1,5 @@
 import json
+import random
 
 from django import template
 
@@ -19,3 +20,11 @@ def to_json(value):
     Преобразует Python-словарь в JSON-строку с двойными кавычками.
     """
     return json.dumps(value)
+
+@register.filter
+def shuffle_letters(value):
+    if not value:
+        return ""
+    letters = list(value)
+    random.shuffle(letters)
+    return ''.join(letters)
