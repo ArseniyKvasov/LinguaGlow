@@ -1,66 +1,102 @@
-document.addEventListener("DOMContentLoaded", function () {
-    document.querySelectorAll(".letter-button").forEach(button => {
-        const taskItem = button.closest(".task-item");
-        const taskId = taskItem.id.replace("task-", "");
-
-        button.addEventListener("click", function() {
-            const wordContainer = this.closest(".word-container");
-            const emptySlot = wordContainer.querySelector(".empty-slot");
-            const expectedLetter = emptySlot?.dataset.expected;
-            const crossIcons = wordContainer.querySelectorAll(".bi-x-circle");
-            const errorCount = parseInt(wordContainer.dataset.errors || 0);
-
-            if (emptySlot && expectedLetter) {
-                // Проверяем корректность буквы
-                if (this.dataset.letter === expectedLetter) {
-                    // Правильный ввод
-                    emptySlot.textContent = this.dataset.letter;
-                    emptySlot.classList.remove("empty-slot");
-                    emptySlot.classList.add("active-slot");
-                    this.disabled = true;
-
-                    // Проверяем завершение слова
-                    if (!wordContainer.querySelector(".empty-slot")) {
-                        wordContainer.querySelector(".word-fields").classList.add("bg-success", "bg-opacity-25");
-                        wordContainer.querySelectorAll(".letter-button").forEach(btn => btn.disabled = true);
-                    }
-
-                    // Сохранение прогресса
-                    saveUserAnswer(taskId, classroomId, {
-                        letter: this.dataset.letter,
-                        word_index: Array.from(taskItem.querySelectorAll(".word-container")).indexOf(wordContainer)
-                    });
-                } else {
-                    // Неправильный ввод
-                    wordContainer.dataset.errors = errorCount + 1;
-
-                    // Анимация ошибки
-                    crossIcons[errorCount].classList.add("text-danger");
-                    emptySlot.classList.add("invalid");
-
-                    emptySlot.textContent = "";
-                    emptySlot.classList.add("empty-slot");
-                    emptySlot.classList.remove("active-slot");
-                    this.disabled = false;
-
-                    // Обработка трех ошибок
-                    if (errorCount + 1 >= 3) {
-                        showWordAndReset(wordContainer);
-                        saveUserAnswer(taskId, classroomId, {
-                                letter: this.dataset.letter,
-                                word_index: Array.from(taskItem.querySelectorAll(".word-container")).indexOf(wordContainer)
-                            }, "reset_word")
-                    }
-                }
-            }
-        });
+document.querySelectorAll(".letter-button").forEach(button => {
+    button.addEventListener("click", function() {
+        handleLetterClick(this, false);
     });
 });
 
+function handleLetterClick(button, isRemote = false) {
+    const wordContainer = button.closest(".word-container");
+    const taskItem = button.closest(".task-item");
+    const taskId = taskItem.id.replace("task-", "");
+    const wordIndex = Array.from(taskItem.querySelectorAll(".word-container")).indexOf(wordContainer);
+    const emptySlot = wordContainer.querySelector(".empty-slot");
+    const expectedLetter = emptySlot?.dataset.expected;
+    const crossIcons = wordContainer.querySelectorAll(".bi-x-circle");
+    const errorCount = parseInt(wordContainer.dataset.errors || 0);
+
+    if (emptySlot && expectedLetter) {
+        if (button.dataset.letter === expectedLetter) {
+            emptySlot.textContent = button.dataset.letter;
+            emptySlot.classList.remove("empty-slot");
+            emptySlot.classList.add("active-slot");
+            button.disabled = true;
+
+            if (!wordContainer.querySelector(".empty-slot")) {
+                wordContainer.querySelectorAll(".active-slot").forEach(slot => {
+                    slot.classList.add("bg-success", "bg-opacity-25");
+                });
+                wordContainer.querySelectorAll(".letter-button").forEach(btn => {
+                    btn.disabled = true;
+                });
+            }
+
+            if (!isRemote) {
+                saveUserAnswer(taskId, classroomId, {
+                    letter: button.dataset.letter,
+                    word_index: wordIndex
+                });
+                sendMessage('unscramble_action', 'all', {
+                    taskId: taskId,
+                    wordIndex: wordIndex,
+                    letter: button.dataset.letter,
+                    action: 'insert'
+                });
+            }
+        } else {
+            wordContainer.dataset.errors = errorCount + 1;
+            crossIcons[errorCount].classList.add("text-danger");
+            emptySlot.classList.add("invalid");
+
+            emptySlot.textContent = "";
+            button.disabled = false;
+
+            if (!isRemote) {
+                sendMessage('unscramble_action', 'all', {
+                    taskId: taskId,
+                    wordIndex: wordIndex,
+                    letter: button.dataset.letter,
+                    action: 'insert'
+                });
+
+                if (errorCount + 1 >= 3) {
+                    sendMessage('unscramble_action', 'all', {
+                        taskId: taskId,
+                        wordIndex: wordIndex,
+                        action: 'reset'
+                    });
+                }
+            }
+
+            if (errorCount + 1 >= 3) {
+                showWordAndReset(wordContainer);
+                if (!isRemote) {
+                    saveUserAnswer(taskId, classroomId, {
+                        letter: button.dataset.letter,
+                        word_index: wordIndex
+                    }, "reset_word");
+                }
+            }
+        }
+    }
+}
+
 function insertWords(words, taskId) {
-    console.log(words);
     const taskElement = document.getElementById(`task-${taskId}`);
     if (!taskElement) return;
+
+    taskElement.querySelector(".reset-button").addEventListener("click", () => {
+        const taskId = taskElement.id.replace("task-", "");
+
+        // Отправляем сообщение о сбросе
+        sendMessage('reset', 'all', {
+            task_id: taskId,
+            classroom_id: classroomId,
+            type: 'unscramble'
+        });
+
+        // Сохраняем состояние сброса
+        saveUserAnswer(taskId, classroomId, {}, "reset");
+    });
 
     const wordContainers = taskElement.querySelectorAll(".word-container");
 
@@ -91,6 +127,17 @@ function insertWords(words, taskId) {
                         emptySlot.textContent = letter;
                         emptySlot.classList.remove("empty-slot");
                         emptySlot.classList.add("active-slot");
+
+                        // Проверяем завершение слова
+                        if (wordContainer && !wordContainer.querySelector(".empty-slot")) {
+                            const slots = wordContainer.querySelectorAll(".active-slot");
+                            slots.forEach(slot => {
+                                slot.classList.add("bg-success", "bg-opacity-25");
+                            });
+                            wordContainer.querySelectorAll(".letter-button").forEach(btn => {
+                                btn.disabled = true;
+                            });
+                        }
                     } else {
                         // Неправильная буква: увеличиваем счётчик ошибок и подсвечиваем крестик
                         const errorCount = parseInt(wordContainer.dataset.errors || 0);
@@ -115,32 +162,56 @@ function showWordAndReset(wordContainer) {
     const slots = wordContainer.querySelectorAll(".empty-slot, .active-slot");
     const originalWord = wordContainer.querySelector(".word-fields").dataset.word;
 
-    // Показываем правильное слово
     slots.forEach((slot, index) => {
         slot.textContent = originalWord[index];
-        slot.classList.remove("empty-slot");
-        slot.classList.add("active-slot");
         slot.classList.add("bg-success", "bg-opacity-25");
+        slot.classList.remove("empty-slot", "invalid");
     });
 
     setTimeout(() => {
-        // Сбрасываем состояние
         slots.forEach(slot => {
             slot.textContent = "";
-            slot.classList.remove("active-slot");
             slot.classList.add("empty-slot");
-            slot.classList.remove("bg-success", "bg-opacity-25", "invalid");
+            slot.classList.remove("active-slot", "bg-success", "bg-opacity-25");
         });
-
-        // Восстанавливаем кнопки
         wordContainer.querySelectorAll(".letter-button").forEach(btn => {
             btn.disabled = false;
         });
-
-        // Сбрасываем крестики
-        wordContainer.dataset.errors = 0;
         wordContainer.querySelectorAll(".bi-x-circle").forEach(icon => {
             icon.classList.remove("text-danger");
         });
+        wordContainer.dataset.errors = 0;
     }, 3000);
+}
+
+function resetUnscrambleTask(taskId) {
+    const taskElement = document.getElementById(`task-${taskId}`);
+    if (!taskElement) return;
+
+    // Сбрасываем все слова в задании
+    taskElement.querySelectorAll(".word-container").forEach(wordContainer => {
+        const slots = wordContainer.querySelectorAll(".empty-slot, .active-slot");
+        const letterButtons = wordContainer.querySelectorAll(".letter-button");
+        const crossIcons = wordContainer.querySelectorAll(".bi-x-circle");
+
+        // Очищаем поля
+        slots.forEach(slot => {
+            slot.textContent = "";
+            slot.classList.remove("active-slot", "bg-success", "bg-opacity-25", "invalid");
+            slot.classList.add("empty-slot");
+        });
+
+        // Включаем все кнопки
+        letterButtons.forEach(button => {
+            button.disabled = false;
+        });
+
+        // Сбрасываем крестики
+        crossIcons.forEach(icon => {
+            icon.classList.remove("text-danger");
+        });
+
+        // Сбрасываем счётчик ошибок
+        wordContainer.dataset.errors = 0;
+    });
 }

@@ -312,7 +312,6 @@ def taskFactory(request, section_id):
         obj_id = data.get('obj_id')
         task_type = data.get('task_type')
         payloads = data.get('payloads', {})
-        print(payloads)
 
         if not task_type or not payloads:
             return JsonResponse({'success': False, 'error': 'Invalid data'}, status=400)
@@ -346,9 +345,7 @@ def taskFactory(request, section_id):
 
         if task_type == 'label_images':
             # Обработка задания "Подписать картинки"
-            print(payloads)
             labels = [img['label'] for img in payloads]
-            print(labels)
 
             try:
                 with transaction.atomic():  # Начинаем транзакцию
@@ -598,7 +595,6 @@ def aiFactory(request, function_name, payloads):
     else:
         return "Неизвестный тип задания."
 
-    print(res)
     return res
 
 def wordListAI(request, payloads):
@@ -730,7 +726,7 @@ def fillInTheBlanksAI(request, payloads):
             'gap': sentence_data.get('gap')
         }
         raw_sentences.append(raw_sentence)
-    print(raw_sentences)
+
     def replace_gaps(sentence, gap):
         # Используем регулярное выражение для замены троеточий и подчеркиваний на слова из списка gaps
         while '__' in sentence:
@@ -744,7 +740,6 @@ def fillInTheBlanksAI(request, payloads):
     for raw_sentence in raw_sentences:
         formatted_sentence = replace_gaps(raw_sentence['sentence'], raw_sentence['gap'])
         formatted_sentences.append(formatted_sentence)
-    print(formatted_sentences)
 
     return json.dumps(formatted_sentences, ensure_ascii=False)
 
@@ -843,6 +838,49 @@ def create_invitation(request, classroom_id):
 
     return JsonResponse({"invitation_url": invitation_url})
 
+# Ответы ученика сохраняются только у ученика
+# Ответы учителя сохраняются у учителя и у всех учеников
+# Unscramble - учитель не может вводить свой ответ, но может помогать другим ученикам с помощью WebSocket
+# Match Up The Words - при сохранении от учителя, проверить не была ли соотнесена эта пара раньше учеником
+def save_user_answer(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            task_id = data.get('task_id')
+            classroom_id = data.get('classroom_id')
+            payloads = data.get('payloads')
+            request_type = data.get('request_type', None)
+
+            special_requests = ["reset"]
+            if request_type in special_requests:
+                with transaction.atomic():
+                    process_multiple_users_answers(task_id, classroom_id, request_type)
+                return JsonResponse({'status': 'success'})
+            elif task_id:
+                with transaction.atomic():
+                    process_user_answer(task_id, classroom_id, request.user, payloads, request_type)
+                return JsonResponse({'status': 'success'})
+            else:
+                return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+    else:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 @csrf_exempt
 def save_user_answer_view(request):
     if request.method == 'POST':
@@ -852,8 +890,6 @@ def save_user_answer_view(request):
             classroom_id = data.get('classroom_id')
             payloads = data.get('payloads')
             request_type = data.get('request_type', None)
-            print(task_id, classroom_id, payloads, request_type)
-
 
             multiple_requests = ["reset"]
             if request_type in multiple_requests:
@@ -882,7 +918,7 @@ def process_user_answer(task_id, classroom_id, user, payloads, request_type):
         user=user,
         defaults={'answer_data': [], 'updated_at': timezone.now(), 'score': 0}
     )
-    print(content_type.model_class() == Unscramble)
+
     if content_type.model_class() == MatchUpTheWords:
         update_match_up_the_words_answer(user_answer, payloads)
     elif content_type.model_class() == Unscramble:
@@ -922,7 +958,6 @@ def update_match_up_the_words_answer(user_answer, payloads):
     word = payloads['word']
     translation = payloads['translation']
     score = payloads['score']
-    print(word, translation, score)
     answer_data = user_answer.answer_data
 
     word_entry = next((item for item in answer_data if item['word'] == word), None)
@@ -939,7 +974,6 @@ def update_match_up_the_words_answer(user_answer, payloads):
         user_answer.score = score
 
     user_answer.answer_data = answer_data
-    print('saving result', user_answer.answer_data, user_answer.score)
     user_answer.updated_at = timezone.now()
     user_answer.save()
 
@@ -968,8 +1002,6 @@ def update_unscramble_answer(user_answer, payloads, request_type):
     user_answer.answer_data = answer_data
     user_answer.updated_at = timezone.now()
     user_answer.save()
-
-    print(f"Updated unscramble answer: {user_answer.answer_data}")
 
 
 
@@ -1041,13 +1073,12 @@ def get_solved_tasks(request):
                 user=user
             ).first()
 
-            if not user_answer:
-                return JsonResponse({'status': 'not_found', 'words': []})
+            user_answers = user_answer.answer_data.get("words") if user_answer else []
 
             return JsonResponse({
                 'status': 'success',
                 'type': 'unscramble',
-                'words': user_answer.answer_data.get("words", []),  # Список слов с буквами
+                'words': user_answers,  # Список слов с буквами
                 'score': user_answer.score
             })
 

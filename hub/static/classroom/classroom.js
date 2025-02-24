@@ -117,6 +117,8 @@ socket.onmessage = function (event) {
     if (data.message_type === "reset") {
         if (data.payloads.type === "match_words") {
             resetMatchWordsTask(data.payloads.task_id);
+        } else if (data.payloads.type === "unscramble") {
+            resetUnscrambleTask(data.payloads.task_id);
         }
     } else if (data.message_type === 'join') {
         showToast(`${data.sender} вошел в класс!`);
@@ -134,6 +136,27 @@ socket.onmessage = function (event) {
                 emptySlot.classList.remove("empty-slot");
                 letterButton.disabled = true;
             }
+        }
+    } else if (data.message_type === 'unscramble_action' && data.sender !== username) {
+        const payload = data.payloads;
+        const taskId = payload.taskId;
+        const wordIndex = payload.wordIndex;
+        const letter = payload.letter;
+        const action = payload.action;
+
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (!taskElement) return;
+
+        const wordContainers = taskElement.querySelectorAll(".word-container");
+        if (wordIndex >= wordContainers.length) return;
+
+        const wordContainer = wordContainers[wordIndex];
+
+        if (action === 'insert') {
+            const button = wordContainer.querySelector(`.letter-button[data-letter="${letter}"]`);
+            if (button) handleLetterClick(button, true);
+        } else if (action === 'reset') {
+            showWordAndReset(wordContainer);
         }
     } else {
         console.log(`Received message: ${JSON.stringify(data)}`);
