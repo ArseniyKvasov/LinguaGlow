@@ -39,11 +39,21 @@ function sendMessage(type, receivers, payloads) {
 async function saveUserAnswer(taskId, classroomId, payloads, request_type=null) {
     console.log('Saving user answer...');
     const url = '/hub/save_user_answer/';
+
+    const studentSelector = document.querySelector('.student-selector');
+
+    let selectedUserId;
+
+    if (studentSelector) {
+        selectedUserId = studentSelector.value;
+    }
+
     const data = {
         task_id: taskId,
         classroom_id: classroomId,
         payloads: payloads,
         request_type: request_type,
+        user_id: selectedUserId,
     };
 
     try {
@@ -114,6 +124,7 @@ socket.onopen = function () {
 
 socket.onmessage = function (event) {
     let data = JSON.parse(event.data);
+    console.log('i reveived');
     if (data.message_type === "reset") {
         if (data.payloads.type === "match_words") {
             resetMatchWordsTask(data.payloads.task_id);
@@ -134,6 +145,7 @@ socket.onmessage = function (event) {
             if (emptySlot && letterButton) {
                 emptySlot.textContent = data.payloads.letter;
                 emptySlot.classList.remove("empty-slot");
+                emptySlot.classList.add("active-slot");
                 letterButton.disabled = true;
             }
         }
@@ -155,11 +167,113 @@ socket.onmessage = function (event) {
         if (action === 'insert') {
             const button = wordContainer.querySelector(`.letter-button[data-letter="${letter}"]`);
             if (button) handleLetterClick(button, true);
-        } else if (action === 'reset') {
+        } else if (action === 'reset_word') {
             showWordAndReset(wordContainer);
+        }
+    } else if (data.message_type === 'FILL_BLANK_ANSWER') {
+        const payload = data.payloads;
+        const taskId = payload.taskId;
+        const blankId = payload.blankId;
+        const status = payload.status;
+
+        // Находим контейнер задачи
+        const taskElement = document.getElementById(`task-${taskId}`);
+        if (!taskElement) return;
+
+        // Находим input, соответствующий blankId
+        const input = taskElement.querySelector(`.blank-input[data-blank-id="${blankId}"]`);
+        if (!input) return;
+
+        // Обновляем визуальное состояние
+        if (status === 'completed') {
+            input.classList.add('answered');
+            input.disabled = true; // Блокируем редактирование
+            input.value = data.payloads.answer;
+        } else if (status === 'incorrect') {
+            input.classList.add('incorrect-answer');
+            input.value = data.payloads.answer;
+            setTimeout(() => {
+                input.disabled = false;
+                input.classList.remove('incorrect-answer');
+            }, 2000);
+        } else if (status === 'reset') {
+            input.classList.remove('answered');
+            input.disabled = false;
+            input.value = '';
+        }
+    } else if (data.message_type === 'TEST_ANSWER' && data.sender !== username) {
+        const payload = data.payloads;
+        const taskElement = document.getElementById(`task-${payload.taskId}`);
+        if (taskElement) {
+            const input = taskElement.querySelector(
+                `input[data-question-id="${payload.questionId}"][data-answer-id="${payload.answerId}"]`
+            );
+            if (input) {
+                input.checked = true;
+            }
+        }
+    } else if (data.message_type === 'LABEL_IMAGE_ANSWER' && data.sender !== username) {
+        const taskContainer = document.getElementById(`task-${data.payloads.taskId}`);
+        if (taskContainer) {
+            const input = taskContainer.querySelector(`.label-image[data-image-id="${data.payloads.imageId}"]`);
+            if (input) {
+                console.log(input);
+                input.value = data.payloads.label;
+                input.classList.remove('is-valid', 'is-invalid');
+                input.classList.add(data.payloads.isCorrect ? 'is-valid' : 'is-invalid');
+            }
+        }
+    } else if (data.message_type === 'CHECK_TRANSLATOR' && data.sender !== username) {
+        const protection_elements = document.querySelectorAll('.protection-element');
+        sendMessage(
+            'CHECK_TRANSLATOR_RESULT',
+            'all',
+            {result: true},
+        );
+        protection_elements.forEach(element => {
+            if (element.innerText !== 'protection element') {
+                sendMessage(
+                    'CHECK_TRANSLATOR_RESULT',
+                    'all',
+                    {result: false},
+                );
+                location.reload();
+            }
+        });
+    } else if (data.message_type === 'CHECK_TRANSLATOR_RESULT') {
+        const antitranslatorResult = document.querySelector('.antitranslator-result');
+        if (data.payloads.result && antitranslatorResult) {
+            antitranslatorResult.innerText = data.payloads.result ? 'Нарушений нет' : 'Страница ученика обновлена. Включите запрет копирования.';
+        }
+    } else if (data.message_type === 'COPYING_RIGHTS') {
+        const isBlock = data.payloads.isBlock;
+        console.log("Обработка COPYING_RIGHTS:", isBlock); // Отладка
+
+        if (isBlock) {
+            // Запрещаем копирование
+            document.body.addEventListener('copy', function(event) {
+                console.log("Копирование запрещено"); // Проверка, что обработчик срабатывает
+                event.preventDefault(); // Предотвращаем копирование
+            });
+            console.log("Копирование запрещено установлено"); // Отладка
+        } else {
+            // Разрешаем копирование
+            document.body.removeEventListener('copy', arguments.callee); // Удаляем обработчик
+            console.log("Копирование разрешено"); // Отладка
         }
     } else {
         console.log(`Received message: ${JSON.stringify(data)}`);
+    }
+
+    const studentSelector = document.querySelector('.student-selector');
+    if (studentSelector && data.payloads.task_id) {
+        const taskContainer = document.getElementById(`task-${data.payloads.task_id}`);
+        if (taskContainer) {
+            const statContainer = taskContainer.querySelector('.stats-container');
+            if (statContainer) {
+                loadStats(data.payloads.task_id, statContainer, studentSelector.options[studentSelector.selectedIndex].text);
+            }
+        }
     }
 };
 
@@ -171,14 +285,63 @@ socket.onclose = function () {
     console.log("WebSocket закрыт");
 };
 
+function handleStudentSelection(selectedUserId, studentUsername) {
+    const taskContainers = document.querySelectorAll(".task-item");
+
+    if (!studentUsername) {
+        const studentUsername = username;
+    }
+
+    taskContainers.forEach(taskContainer => {
+        const taskId = taskContainer.id.replace("task-", "");
+        const statContainer = taskContainer.querySelector(".stats-container");
+        console.log(taskContainer.dataset.taskType);
+
+        if (taskContainer.dataset.taskType === "match-words") {
+            loadSavedTasks(taskContainer, "match-words", selectedUserId);
+            loadStats(taskId, statContainer, studentUsername);
+        } else if (taskContainer.dataset.taskType === "unscramble") {
+            loadSavedTasks(taskContainer, "unscramble", selectedUserId);
+            loadStats(taskId, statContainer, studentUsername);
+        } else if (taskContainer.dataset.taskType === "fillblanks") {
+            loadSavedTasks(taskContainer, "fill_blanks", selectedUserId);
+        } else if (taskContainer.dataset.taskType === "test") {
+            loadSavedTasks(taskContainer, "test", selectedUserId);
+        }  else if (taskContainer.dataset.taskType === "label_images") {
+            loadSavedTasks(taskContainer, "label_images", selectedUserId);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Проверяем, есть ли элемент выбора ученика (если пользователь — учитель)
+    const studentSelector = document.querySelector('.student-selector');
+
+    let selectedUserId;
+
+    if (studentSelector) {
+        const selectedUserId = studentSelector.value;
+        const selectedUserName = studentSelector.options[studentSelector.selectedIndex].text;
+        handleStudentSelection(selectedUserId, selectedUserName);
+        studentSelector.addEventListener('change', function () {
+            reset_all_tasks();
+            const selectedUserId = studentSelector.value;
+            const selectedUserName = studentSelector.options[studentSelector.selectedIndex].text;
+            handleStudentSelection(selectedUserId, selectedUserName);
+        });
+    } else {
+        handleStudentSelection();
+    }
+});
+
 
 // Функция для загрузки сохраненных ответов
-async function loadSavedTasks(taskContainer, type) {
+async function loadSavedTasks(taskContainer, type, selectedUserId) {
     const taskId = taskContainer.id.replace('task-', '');
 
     try {
         const response = await fetch(
-            `/hub/get_solved_tasks/?task_id=${taskId}&classroom_id=${classroomId}&user_id=${userId}&type=${type}`
+            `/hub/get_solved_tasks/?task_id=${taskId}&classroom_id=${classroomId}&user_id=${selectedUserId}&type=${type}`
         );
         const data = await response.json();
 
@@ -191,6 +354,37 @@ async function loadSavedTasks(taskContainer, type) {
                 matchPairsScoreUpdate(taskId, data.score);
             } else if (type === 'unscramble') {
                 insertWords(data.words, taskId);
+            } else if (type === 'fill_blanks') {
+                // Обработка для fill-blanks
+                data.blanks.forEach(blank => {
+                    const input = taskContainer.querySelector(`.blank-input[data-blank-id="${blank.blankId}"]`);
+                    if (input) {
+                        input.value = blank.answer; // Вставляем сохраненный ответ
+                        // Имитация нажатия Enter с учетом флага isRemote
+                        const event = new KeyboardEvent('keydown', { key: 'Enter' });
+                        event.isRemote = true; // Добавляем кастомное свойство
+                        input.dispatchEvent(event);
+                    }
+                });
+            } else if (type === 'test') {
+                data.answers.forEach(answer => {
+                    const input = taskContainer.querySelector(
+                        `input[data-question-id="${answer.question_id}"][data-answer-id="${answer.answer_id}"]`
+                    );
+                    if (input) {
+                        input.checked = true;
+                    }
+                });
+            } else if (type === 'label_images') {
+                // Обработка для label_images
+                data.labels.forEach(label => {
+                    const input = taskContainer.querySelector(`.label-input[data-image-id="${label.image_id}"]`);
+                    if (input) {
+                        input.value = label.label; // Вставляем сохраненный ответ
+                        input.classList.remove('is-valid', 'is-invalid');
+                        input.classList.add(label.is_correct ? 'is-valid' : 'is-invalid');
+                    }
+                });
             }
         }
     } catch (error) {
@@ -198,16 +392,132 @@ async function loadSavedTasks(taskContainer, type) {
     }
 }
 
-// Инициализация после загрузки страницы
-document.addEventListener('DOMContentLoaded', function() {
-    const taskContainers = document.querySelectorAll(".task-item");
+function loadStats(taskId, statContainer, currentUser) {
+    console.log('Loading stats for task', taskId, currentUser);
+
+    fetch(`/hub/get_stats/?task_id=${taskId}&classroom_id=${classroomId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const wrapper = statContainer.querySelector(".scroll-wrapper");
+                const columnsContainer = statContainer.querySelector(".stats-columns");
+                columnsContainer.innerHTML = "";
+
+                let students = Object.entries(data.stat)
+                    .map(([username, score]) => ({ username, score }))
+                    .sort((a, b) => a.score - b.score); // Сортируем от меньшего к большему
+
+                // Проверяем, есть ли хотя бы один ненулевой результат
+                const hasNonZeroScores = students.some(student => student.score > 0);
+                if (!hasNonZeroScores) {
+                    statContainer.style.display = "none"; // Если все 0, скрываем блок
+                    return;
+                } else {
+                    statContainer.style.display = "block"; // Показываем, если есть смысл
+                }
+
+                const maxScore = Math.max(...students.map(s => s.score), 1); // Находим лучший результат
+                const containerHeight = 150; // Высота контейнера
+
+                students.forEach(student => {
+                    const barHeight = student.score > 0
+                        ? Math.max((student.score / maxScore) * containerHeight, 5)
+                        : 5;
+
+                    const barColor = student.username === currentUser ? "bg-success" : "bg-primary";
+
+                    const column = `
+                        <div class="d-flex flex-column align-items-center text-center" style="width: 30%;">
+                            <span class="text-muted small">${student.username}</span>
+                            <div class="${barColor} text-white fw-bold rounded-top d-flex align-items-end justify-content-center"
+                                 style="width: 100%; height: ${barHeight}px; border-radius: 10px 10px 0 0;">
+                            </div>
+                            <span class="small">${student.score}</span>
+                        </div>
+                    `;
+
+                    columnsContainer.innerHTML += column;
+                });
+
+                // Если колонок больше 3, включаем скролл
+                if (students.length > 3) {
+                    wrapper.style.overflowX = "auto";
+                    columnsContainer.style.minWidth = `${students.length * 30}%`;
+                } else {
+                    wrapper.style.overflowX = "hidden";
+                    columnsContainer.style.minWidth = "100%";
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+function reset_all_tasks() {
+    const taskContainers = document.querySelectorAll('.task-item');
     taskContainers.forEach(taskContainer => {
-        if (taskContainer.dataset.taskType === "match-words") {
-            addMatchWordsButtonsListeners(taskContainer);
-            loadSavedTasks(taskContainer, 'match-words');
-        } else if (taskContainer.dataset.taskType === "unscramble") {
-            loadSavedTasks(taskContainer, 'unscramble');
+        const taskId = taskContainer.id.replace('task-', '');
+        if (taskContainer.dataset.taskType === 'match-words') {
+            resetMatchWordsTask(taskId);
+        } else if (taskContainer.dataset.taskType === 'unscramble') {
+            resetUnscrambleTask(taskId);
+        } else if (taskContainer.dataset.taskType === 'fill-blanks') {
+            resetFillBlanksTask(taskId);
+        } else if (taskContainer.dataset.taskType === 'test') {
+            resetTestTask(taskId);
+        } else if (taskContainer.dataset.taskType === 'label_images') {
+            resetLabelImagesTask(taskId);
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const taskContainers = document.querySelectorAll('.task-item');
+    taskContainers.forEach(taskContainer => {
+        const button = taskContainer.querySelector(".reset-button");
+        if (button) {
+            button.addEventListener("click", () => {
+                const taskId = taskContainer.id.replace("task-", "");
+
+                // Отправляем сообщение о сбросе
+                sendMessage('reset', 'all', {
+                    task_id: taskId,
+                    classroom_id: classroomId,
+                    type: taskContainer.dataset.taskType,
+                });
+
+                // Сохраняем состояние сброса
+                saveUserAnswer(taskId, classroomId, {}, "reset");
+            })
         }
     });
 });
 
+
+
+// Функции защиты от списывания
+const antitranslatorSelect = document.getElementById('antitranslator');
+if (antitranslatorSelect) {
+    antitranslatorSelect.addEventListener('change', function(event) {
+        const selectedValue = event.target.value;
+        if (selectedValue === 'check') {
+            sendMessage("CHECK_TRANSLATOR", 'all', {}); // Отправка сообщения для проверки на списывание
+            console.log("Проверка на списывание...");
+        }
+    });
+}
+
+const anticopyingSelect = document.getElementById('anticopying');
+if (anticopyingSelect) {
+    anticopyingSelect.addEventListener('change', function(event) {
+        const selectedValue = event.target.value;
+        if (selectedValue === 'block') {
+            sendMessage("COPYING_RIGHTS", 'all', { isBlock: true }); // Запретить копирование
+            console.log("Копирование запрещено");
+        } else if (selectedValue === 'allow') {
+            sendMessage("COPYING_RIGHTS", 'all', { isBlock: false }); // Разрешить копирование
+            console.log("Копирование разрешено");
+        }
+    });
+}

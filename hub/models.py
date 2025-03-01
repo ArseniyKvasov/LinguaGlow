@@ -245,7 +245,7 @@ class EmbeddedTask(models.Model):
         # Разрешаем только iframe и его атрибуты
         allowed_tags = ['iframe']
         allowed_attrs = {
-            'iframe': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'style']
+            'iframe': ['src', 'width', 'height', 'frameborder', 'allow', 'allowfullscreen', 'style', 'class']
         }
 
         # Очищаем HTML-код, сохраняя только разрешенные теги и атрибуты

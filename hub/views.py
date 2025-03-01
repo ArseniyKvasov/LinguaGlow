@@ -15,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.utils import timezone
+from users.models import CustomUser
 from django.contrib.auth.decorators import login_required
 import re
 from django.contrib.contenttypes.models import ContentType
@@ -602,19 +603,19 @@ def wordListAI(request, payloads):
     requirements = payloads['requirements']
     basics = payloads['basics']
 
-    query = f"Generate a word list for topic {topic}."
+    query = f"Составить список английских слов: {topic}."
     if payloads['quantity']:
         words_quantity = payloads['quantity']
-        query += f"It should have {words_quantity} words or phrases."
+        query += f"Список должен содержать {words_quantity} слов или фраз."
         size_limit = int(words_quantity) * 10 + 100
     else:
         size_limit = 300
     if requirements:
-        query += f"It should have the following user's requirements: {requirements}."
+        query += f"Учитывай: {requirements}."
     if basics:
-        query += f"Generate it based on my previously created content: {basics}."
+        query += f"Он будет дополнением к моим прошлым заданиям урока: {basics}."
 
-    query += "Write in JSON: [{'word': 'read', 'translation': 'читать'}, ...]"
+    query += "Верни в JSON: [{'word': 'read', 'translation': 'читать'}, ...]"
 
     return text_generation(request, query, size_limit)
 
@@ -623,15 +624,15 @@ def essayAI(request, payloads):
     requirements = payloads['requirements']
     basics = payloads['basics']
 
-    query = "Generate a creative topic for the essay."
+    query = "Сгенерируй креативную тему для эссе."
     if size:
-        query += f"The essay will consist of about {size} words."
+        query += f"Оно будет состоять из примерно {size} слов."
     if requirements:
-        query += f"It should have the following user's requirements: {requirements}."
+        query += f"Учитывай: {requirements}."
     if basics:
-        query += f"Generate it based on my previously created content: {basics}."
+        query += f"Оно будет дополнением к моим прошлым заданиям урока: {basics}."
 
-    query += "Write in JSON {'instructions': '...', 'conditions': {'...': score(int), ...} }"
+    query += "Верни в JSON {'instructions': '...', 'conditions': {'...': score(int), ...} }"
     return text_generation(request, query, 0)
 
 def noteAI(request, payloads):
@@ -640,14 +641,14 @@ def noteAI(request, payloads):
     basics = payloads.get('basics', '')
     is_short_note = payloads.get('is_short_note', False)
 
-    query = f"Generate a note based on the following topic: {topic}."
+    query = f"Сгенерируй заметку-объяснение: {topic}."
     if requirements:
-        query += f" It should include the following user's requirements: {requirements}."
+        query += f"Учитывай: {requirements}."
     if basics:
-        query += f"Generate it based on my previously created content: {basics}."
+        query += f"Это будет дополнением к моим прошлым заданиям урока: {basics}."
     if is_short_note:
-        query += " The note should be concise and brief."
-    query += "Write in JSON {'title': '...', 'content': '...'}"
+        query += "Заметка должна быть короткой."
+    query += "Верни в JSON {'title': '...', 'content': '...'}. Используй полужирный, курсив, нижнее подчеркивание и абзацы."
     return text_generation(request, query, 0)
 
 def articleAI(request, payloads):
@@ -656,14 +657,14 @@ def articleAI(request, payloads):
     length = payloads.get('length', 200)
     basics = payloads.get('basics', '')
 
-    query = f"Generate an article in English: {title}."
+    query = f"Составь статью на английском: {title}."
     if requirements:
-        query += f"It should include the following user's requirements: {requirements}."
+        query += f"Учитывай: {requirements}."
     if length:
-        query += f"The article should be approximately {length} words long."
+        query += f"Объем текста примерно {length} слов."
     if basics:
-        query += f"Generate it based on my previously created content: {basics}."
-    query += "Write in JSON {'title': '...', 'content': '...'}. You can separate paragraphs and use bold, italic or underline."
+        query += f"Он будет дополнением к моим прошлым заданиям урока: {basics}."
+    query += "Верни JSON {'title': '...', 'content': '...'}. Используй полужирный, курсив, нижнее подчеркивание и абзацы."
     return text_generation(request, query, 0)
 
 def testAI(request, payloads):
@@ -672,14 +673,14 @@ def testAI(request, payloads):
     question_count = payloads.get('question_count', 5)
     basics = payloads.get('selectedTasksData', '')
 
-    query = f"Generate english test comprehension questions with multiple choice answers on the topic of {topic}."
+    query = f"Составь тест на английском с вариантами ответов: {topic}."
     if requirements:
-        query += f" It should include the following user's requirements: {requirements}."
+        query += f"Учитывай:: {requirements}."
     if question_count:
-        query += f" The test should contain {question_count} questions."
+        query += f"Должно быть {question_count} вопросов."
     if basics:
-        query += f" Generate it based on my previously created content: {basics}."
-    query += "Write in JSON: \
+        query += f"Он будет дополнением к моим прошлым заданиям урока: {basics}."
+    query += "Верни в JSON: \
     { \
         'question 1': { \
             'question_title': '...', \
@@ -707,13 +708,12 @@ def fillInTheBlanksAI(request, payloads):
     topic = payloads.get('topic', '')
     basics = payloads.get('basics', [])
     sentence_count = payloads.get('sentence_count', 5)
-
-    query = f"Generate {sentence_count} sentences with blanks to be filled. In English. Only one blank for each sentence."
+    query = f"Составь задание на английском Заполнить пропуски. Только один пропуск для каждой строки. Должно быть {sentence_count} строк."
     if topic:
-        query += f"The topic of the sentences is {topic}. "
+        query += f"Тема: {topic}. "
     if basics:
-        query += f"Generate it based on my previously created content: {basics}."
-    query += "Write in JSON: [{'sentence': '...' (should include _ as a missed word), 'gap': '...' } , ...]"
+        query += f"Это будет дополнением к моим прошлым заданиям урока: {basics}."
+    query += "Верни в JSON: [{'sentence': '...' (включая нижнее подчеркивание _ как пропущенное слово), 'gap': '...' } , ...]"
     result = text_generation(request, query, 0)
 
     # Преобразуем результат в нужный формат
@@ -815,6 +815,9 @@ def accept_invitation(request, code):
 
     classroom = invitation.classroom
 
+    if request.user in classroom.students.all() or request.user in classroom.teachers.all():
+        return redirect("classroom_view", classroom_id=classroom.id)  # Редирект на страницу класса
+
     # Если пользователь авторизован, добавляем его как постоянного ученика
     if request.user.is_authenticated:
         classroom.students.add(request.user)
@@ -849,109 +852,51 @@ def save_user_answer(request):
             task_id = data.get('task_id')
             classroom_id = data.get('classroom_id')
             payloads = data.get('payloads')
+            user_id = data.get('user_id')
+            user_instance = CustomUser.objects.get(id=user_id) if user_id else request.user
+
             request_type = data.get('request_type', None)
 
             special_requests = ["reset"]
-            if request_type in special_requests:
-                with transaction.atomic():
-                    process_multiple_users_answers(task_id, classroom_id, request_type)
-                return JsonResponse({'status': 'success'})
-            elif task_id:
-                with transaction.atomic():
-                    process_user_answer(task_id, classroom_id, request.user, payloads, request_type)
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
+            with transaction.atomic():
+                if request_type in special_requests:
+                    if request_type == "reset":
+                        reset_request(user_instance, task_id, classroom_id)
+                        return JsonResponse({'status': 'success', 'message': 'Request processed successfully'}, status=200)
+                else:
+                    process_user_answer(task_id, classroom_id, user_instance, payloads, request_type)
+                    return JsonResponse({'status': 'success', 'message': 'Request processed successfully'}, status=200)
         except json.JSONDecodeError:
             return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
     else:
         return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-@csrf_exempt
-def save_user_answer_view(request):
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            task_id = data.get('task_id')
-            classroom_id = data.get('classroom_id')
-            payloads = data.get('payloads')
-            request_type = data.get('request_type', None)
-
-            multiple_requests = ["reset"]
-            if request_type in multiple_requests:
-                with transaction.atomic():
-                    process_multiple_users_answers(task_id, classroom_id, request_type)
-                return JsonResponse({'status': 'success'})
-            elif task_id:
-                with transaction.atomic():
-                    process_user_answer(task_id, classroom_id, request.user, payloads, request_type)
-                return JsonResponse({'status': 'success'})
-            else:
-                return JsonResponse({'status': 'error', 'message': 'Missing required fields'}, status=400)
-        except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
-    else:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
-
+# Промежуточная функция, которая выдаст все модели пользователей (ученика и учителей)
 def process_user_answer(task_id, classroom_id, user, payloads, request_type):
     task_instance = BaseTask.objects.get(id=task_id)
     classroom_instance = Classroom.objects.get(id=classroom_id)
 
-    content_type = ContentType.objects.get_for_model(task_instance.content_object)
+    content_type = ContentType.objects.get_for_model(task_instance.content_object).model_class()
+
     user_answer, created = UserAnswer.objects.get_or_create(
         task=task_instance,
         classroom=classroom_instance,
         user=user,
         defaults={'answer_data': [], 'updated_at': timezone.now(), 'score': 0}
     )
+    print('Save answer for the student ', user)
+    answer_handler(content_type, user_answer, payloads, request_type)
 
-    if content_type.model_class() == MatchUpTheWords:
+def answer_handler(content_type, user_answer, payloads, request_type):
+    if content_type == MatchUpTheWords:
         update_match_up_the_words_answer(user_answer, payloads)
-    elif content_type.model_class() == Unscramble:
+    elif content_type == Unscramble:
         update_unscramble_answer(user_answer, payloads, request_type)
-
-
-def process_multiple_users_answers(task_id, classroom_id, request_type):
-    task_instance = BaseTask.objects.get(id=task_id)
-    classroom_instance = Classroom.objects.get(id=classroom_id)
-    classroom_users = list(classroom_instance.teachers.all()) + list(classroom_instance.students.all())
-    content_type = ContentType.objects.get_for_model(task_instance.content_object)
-
-    if request_type == "reset":
-        for user in classroom_users:
-            user_answer = UserAnswer.objects.filter(
-                task=task_instance,
-                classroom=classroom_instance,
-                user=user
-            ).first()
-
-            if user_answer:
-                # Сбрасываем в начальное состояние в зависимости от типа задания
-                if content_type.model_class() == MatchUpTheWords:
-                    user_answer.answer_data = []
-                elif content_type.model_class() == Unscramble:
-                    user_answer.answer_data = {
-                        'current_word_index': 0,
-                        'score': 0,
-                        'answers': []
-                    }
-
-                user_answer.score = 0
-                user_answer.save()
+    elif content_type == FillInTheBlanks:
+        update_fill_blank_answer(user_answer, payloads)
+    elif content_type == Test:
+        update_test_answer(user_answer, payloads)
 
 
 def update_match_up_the_words_answer(user_answer, payloads):
@@ -976,7 +921,6 @@ def update_match_up_the_words_answer(user_answer, payloads):
     user_answer.answer_data = answer_data
     user_answer.updated_at = timezone.now()
     user_answer.save()
-
 
 def update_unscramble_answer(user_answer, payloads, request_type):
     word_index = payloads.get("word_index")  # Какое слово обновляем
@@ -1003,6 +947,128 @@ def update_unscramble_answer(user_answer, payloads, request_type):
     user_answer.updated_at = timezone.now()
     user_answer.save()
 
+def update_fill_blank_answer(user_answer, payloads):
+    blank_id = payloads.get("blankId")
+    answer = payloads.get("answer")
+
+    answer_data = user_answer.answer_data or {"blanks": []}
+
+    # Удаляем пустые ответы
+    answer_data["blanks"] = [blank for blank in answer_data["blanks"] if blank["answer"]]
+
+    # Обновляем или добавляем ответ
+    blank_found = False
+    for blank in answer_data["blanks"]:
+        if blank["blankId"] == blank_id:
+            blank["answer"] = answer
+            blank_found = True
+            break
+
+    if not blank_found and answer:  # Добавляем только непустые ответы
+        answer_data["blanks"].append({
+            "blankId": blank_id,
+            "answer": answer
+        })
+
+    user_answer.answer_data = answer_data
+    user_answer.updated_at = timezone.now()
+    user_answer.save()
+
+
+def update_test_answer(user_answer, payloads):
+    question_id = payloads.get("question_id")
+    answer_id = payloads.get("answer_id")
+
+    answer_data = user_answer.answer_data or {"answers": []}
+
+    # Обновляем или добавляем ответ
+    existing = next((a for a in answer_data["answers"] if a["question_id"] == question_id), None)
+    if existing:
+        existing["answer_id"] = answer_id
+    else:
+        answer_data["answers"].append({
+            "question_id": question_id,
+            "answer_id": answer_id
+        })
+
+    user_answer.answer_data = answer_data
+    user_answer.updated_at = timezone.now()
+    user_answer.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+def reset_request(user, task_id, classroom_id):
+    task_instance = BaseTask.objects.get(id=task_id)
+    classroom_instance = Classroom.objects.get(id=classroom_id)
+    classroom_users = list(classroom_instance.teachers.all()) + list(classroom_instance.students.all())
+    content_type = ContentType.objects.get_for_model(task_instance.content_object)
+
+    #if user not in classroom_instance.teachers.all():
+    #    return JsonResponse({'status': 'error', 'message': 'Only teacher can reset tasks.'}, status=403)
+    #Когда будешь добавлять это, то не забудь скрыть кнопки у учеников
+
+    print(user)
+    for user in classroom_users:
+        user_answer = UserAnswer.objects.filter(
+            task=task_instance,
+            classroom=classroom_instance,
+            user=user
+        ).first()
+
+        if user_answer:
+            # Сбрасываем в начальное состояние в зависимости от типа задания
+            if content_type.model_class() == MatchUpTheWords:
+                user_answer.answer_data = []
+            elif content_type.model_class() == Unscramble:
+                user_answer.answer_data = {"words": []}
+
+            user_answer.score = 0
+            user_answer.save()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 @login_required
@@ -1010,22 +1076,22 @@ def get_solved_tasks(request):
     task_id = request.GET.get('task_id')
     classroom_id = request.GET.get('classroom_id')
     type = request.GET.get('type')
+    user_id = request.GET.get('user_id')
+    user_instance = CustomUser.objects.get(id=user_id) if user_id != "undefined" else request.user
 
     try:
         classroom_instance = Classroom.objects.get(id=classroom_id)
         teachers = classroom_instance.teachers.all()
-        user = request.user
 
         if type == 'match-words':
             # Списки для хранения ответов
             student_pairs = []  # Ответы ученика (с дубликатами)
-            teacher_pairs = []  # Ответы учителей (с дубликатами)
 
             # Получаем ответы ученика
             user_answers = UserAnswer.objects.filter(
                 task_id=task_id,
                 classroom_id=classroom_id,
-                user=user
+                user=user_instance
             ).first()
 
             if user_answers:
@@ -1034,34 +1100,11 @@ def get_solved_tasks(request):
                         for translation in pair['translations']:
                             student_pairs.append((pair['word'], translation))
 
-            # Получаем ответы учителей
-            for teacher in teachers:
-                teacher_answers = UserAnswer.objects.filter(
-                    task_id=task_id,
-                    classroom_id=classroom_id,
-                    user=teacher
-                ).first()
-
-                if teacher_answers:
-                    for pair in teacher_answers.answer_data:
-                        if 'word' in pair and 'translations' in pair:
-                            for translation in pair['translations']:
-                                teacher_pairs.append((pair['word'], translation))
-
-            # Преобразуем списки в множества для работы с пересечением/разностью
-            student_set = set(student_pairs)
-            teacher_set = set(teacher_pairs)
-
-            # Pairs = (student_pairs ∪ teacher_pairs) без дубликатов
-            pairs = list(student_set | teacher_set)
-
             # Возвращаем данные в JSON
             return JsonResponse({
                 'status': 'success',
                 'type': 'match-words',
-                'student_pairs': student_pairs,  # Все ответы ученика
-                'teacher_pairs': teacher_pairs,  # Все ответы учителей
-                'pairs': pairs,  # Разность объединенного и пересечения
+                'pairs': student_pairs,
                 'score': user_answers.score if user_answers else 0,
             })
 
@@ -1070,7 +1113,7 @@ def get_solved_tasks(request):
             user_answer = UserAnswer.objects.filter(
                 task_id=task_id,
                 classroom_id=classroom_id,
-                user=user
+                user=user_instance
             ).first()
 
             user_answers = user_answer.answer_data.get("words") if user_answer else []
@@ -1079,7 +1122,99 @@ def get_solved_tasks(request):
                 'status': 'success',
                 'type': 'unscramble',
                 'words': user_answers,  # Список слов с буквами
-                'score': user_answer.score
+                'score': user_answer.score if user_answer else 0,
+            })
+
+        elif type == 'fill_blanks':
+            # Получаем ответ пользователя
+            user_answer = UserAnswer.objects.filter(
+                task_id=task_id,
+                classroom_id=classroom_id,
+                user=user_instance
+            ).first()
+
+            # Формируем список ответов для fill-blanks
+            blanks = []
+            if user_answer:
+                for blank in user_answer.answer_data.get("blanks", []):
+                    blanks.append({
+                        "blankId": blank.get("blankId"),
+                        "answer": blank.get("answer"),
+                    })
+
+            return JsonResponse({
+                'status': 'success',
+                'type': 'fill-blanks',
+                'blanks': blanks,  # Список ответов для пропусков
+                'score': user_answer.score if user_answer else 0,
+            })
+
+        elif type == 'test':
+            # Получаем ответ пользователя
+            user_answer = UserAnswer.objects.filter(
+                task_id=task_id,
+                classroom_id=classroom_id,
+                user=user_instance
+            ).first()
+
+            # Формируем список ответов для теста
+            answers = []
+            if user_answer:
+                for answer in user_answer.answer_data.get("answers", []):
+                    answers.append({
+                        "question_id": answer.get("question_id"),
+                        "answer_id": answer.get("answer_id"),
+                    })
+
+            return JsonResponse({
+                'status': 'success',
+                'type': 'test',
+                'answers': answers,  # Список ответов на вопросы теста
+                'score': user_answer.score if user_answer else 0,
+            })
+
+
+        elif type == 'label_images':
+
+            # Получаем ответ пользователя
+
+            user_answer = UserAnswer.objects.filter(
+
+                task_id=task_id,
+
+                classroom_id=classroom_id,
+
+                user=user_instance
+
+            ).first()
+
+            # Формируем список ответов для label_images
+
+            labels = []
+
+            if user_answer and isinstance(user_answer.answer_data, list):  # Проверяем, что answer_data — это список
+
+                for label in user_answer.answer_data:
+                    labels.append({
+
+                        "image_id": label.get("image_id"),  # Используем .get() для безопасного доступа
+
+                        "label": label.get("label"),
+
+                        "is_correct": label.get("is_correct", False),
+
+                    })
+
+            return JsonResponse({
+
+                'status': 'success',
+
+                'type': 'label_images',
+
+                'labels': labels,  # Список ответов для подписей
+
+                'score': user_answer.score if user_answer else 0,
+
             })
 
     except Classroom.DoesNotExist:
@@ -1088,7 +1223,33 @@ def get_solved_tasks(request):
     except UserAnswer.DoesNotExist:
         return JsonResponse({
             'status': 'not_found',
-            'student_pairs': [],
-            'teacher_pairs': [],
-            'pairs': []
         })
+
+@login_required
+def get_stats(request):
+    task_id = request.GET.get('task_id')
+    classroom_id = request.GET.get('classroom_id')
+
+    try:
+        classroom_instance = Classroom.objects.get(id=classroom_id)
+        students = classroom_instance.students.all()
+        stat = {}
+
+        for student in students:
+            user_answer = UserAnswer.objects.filter(
+                task_id=task_id,
+                classroom_id=classroom_id,
+                user=student
+            ).first()
+
+            if user_answer:
+                stat[student.username] = user_answer.score
+
+        return JsonResponse({
+            'status': 'success',
+            'stat': stat,
+        })
+
+    except Classroom.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Classroom not found'}, status=404)
+

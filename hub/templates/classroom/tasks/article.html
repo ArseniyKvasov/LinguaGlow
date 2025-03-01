@@ -1,9 +1,15 @@
+
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <input type="checkbox" class="task-checkbox" data-task-id="{{ task.id }}">
-    <label for="task-{{ task.id }}"></label>
-    <h3 data-sanitize="true">{{ task.content_object.title|escape }}</h3>
-    <div class="article-content">
-        <div data-sanitize="true">{{ task.content_object.content|safe }}</div>
+
+<div class="task-item" id="task-{{ task.id }}" data-task-type="article">
+    <div class="card mb-3 border-0 shadow-lg rounded-3">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <input type="checkbox" class="form-check-input me-3 task-checkbox" data-task-id="{{ task.id }}">
+            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
+            <span class="badge bg-primary text-white fs-6">Article Task</span>
+        </div>
+        <div class="card-body">
+            <div class="article-content mb-4 text-part">{{ task.content_object.content|safe }}</div>
+        </div>
     </div>
 </div>

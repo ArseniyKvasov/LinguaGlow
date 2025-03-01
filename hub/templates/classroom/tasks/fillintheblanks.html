@@ -1,15 +1,59 @@
+{# В шаблоне #}
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    <!-- Блок с пропущенными словами, если формат с листом -->
-    {% if task.content_object.display_format == "list" %}
-    <div class="missing-words-list">
-        <h4>Пропущенные слова:</h4>
-        <ul id="answer-list-{{ task.id }}">
-            <!-- Список ответов будет добавлен через JS -->
-        </ul>
+{% load custom_filters %}
+
+<div class="task-item" id="task-{{ task.id }}" data-task-type="fillblanks">
+    <div class="card mb-3 border-0 shadow-lg rounded-3">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <span class="badge bg-primary text-white fs-6">FillBlanks Task</span>
+        </div>
+        <div class="card-body">
+            <div class="fill-blanks-content mb-4">
+                {% with blanks=task.content_object.text|split_blanks %}
+                    {# Извлекаем слова из текста, заключенные в квадратные скобки #}
+                    {% if task.content_object.display_format == 'list' %}
+                        {% with word_list=task.content_object.text|extract_words_from_brackets %}
+                            <div class="word-list mb-3">
+                                <h5 class="fw-bold">Список слов:</h5>
+                                <ul class="list-unstyled d-flex flex-wrap gap-2">
+                                    {% for word in word_list %}
+                                        <li class="badge bg-secondary text-white fs-6 word-item"
+                                            data-word="{{ word }}"
+                                            data-blank-id="blank-{{ task.id }}-{{ forloop.counter0 }}">
+                                            {{ word }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endwith %}
+                    {% endif %}
+
+                    {# Основной текст с пропусками #}
+                    <div class="blanks-text fs-5 lh-base">
+                        {% for part in blanks %}
+                            {% if part.0 == 'input' %}
+                                <span class="blank-container position-relative d-inline-block mx-1">
+                                    <input type="text"
+                                           class="blank-input form-control{% if part.3 %} correct-answer{% endif %}"
+                                           data-task-id="{{ task.id }}"
+                                           data-correct="{{ part.1 }}"
+                                           data-blank-id="blank-{{ task.id }}-{{ forloop.counter0 }}"
+                                           style="min-width: 100px; width: auto; display: inline-block;"
+                                           {% if part.3 %}disabled{% endif %}>
+                                    {% if user in teachers %}
+                                    <span class="correct-tooltip position-absolute start-0 bottom-100 small bg-dark text-white p-1 rounded"
+                                          style="display: none; z-index: 1000;">
+                                        {{ part.1|safe }}
+                                    </span>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <span class="text-part">{{ part.1|safe }}</span>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endwith %}
+            </div>
+        </div>
     </div>
-    {% endif %}
-    <!-- Текст с пропусками -->
-    <p id="task-text-{{ task.id }}">{{ task.content_object.text }}</p>
 </div>

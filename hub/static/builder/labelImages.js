@@ -36,7 +36,7 @@ export function init(taskData = null, selectedTasksData = null) {
                         </div>
                     </div>
                     <div class="col-4">
-                        <div class="image-preview-label-images">
+                        <div class="image-preview-label-images row overflow-auto">
                             <!-- Тег <img> будет добавлен динамически -->
                         </div>
                     </div>
@@ -120,7 +120,6 @@ export function init(taskData = null, selectedTasksData = null) {
             searchResultsLabelImages.classList.remove('d-none');
             infoText.style.display = 'none';
             allLabelImages.forEach((image, index) => {
-                if (index >= 3) return; // Отображаем только первые 2 картинки
                 const col = document.createElement('div');
                 col.className = 'col-4';
                 col.innerHTML = `

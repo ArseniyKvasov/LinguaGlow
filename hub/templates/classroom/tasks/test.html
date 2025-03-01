@@ -1,27 +1,43 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    {% if task.content_object.time %}
-    <h3 class="mb-3">{{ task.content_object.time }}</h3>
-    {% endif %}
-    <div class="questions-list">
-        {% if task.content_object.questions %}
-        <ul class="list-group">
-            {% for question in task.content_object.questions %}
-            <li class="list-group-item">
-                <strong>{{ question.question }}</strong>
-                <ul class="list-group mt-2">
-                    {% for answer in question.answers %}
-                    <li class="list-group-item{% if answer.correct %} list-group-item-success{% else %} list-group-item-secondary{% endif %}">
-                        {{ answer.answer }}
-                    </li>
+{% load custom_filters %}
+
+<div class="task-item" id="task-{{ task.id }}" data-task-type="test">
+    <div class="card mb-3 border-0 shadow-lg rounded-3">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
+            <span class="badge bg-primary text-white fs-6">Test Task</span>
+        </div>
+        <div class="card-body">
+            <div class="test-content">
+                {% if task.content_object.questions %}
+                <form class="test-form" data-task-id="{{ task.id }}">
+                    {% for question in task.content_object.questions %}
+                    <div class="question-item mb-4" data-question-id="{{ forloop.counter0 }}">
+                        <h5 class="fw-bold mb-3">{{ question.question }}</h5>
+                        <div class="answers-list mx-4">
+                            {% for answer in question.answers %}
+                            <div class="form-check answer-item {% if answer.correct %}correct-answer{% endif %}">
+                                <input class="form-check-input" type="radio"
+                                       name="question-{{ forloop.parentloop.counter0 }}"
+                                       id="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}"
+                                       value="{{ forloop.counter0 }}"
+                                       data-question-id="{{ forloop.parentloop.counter0 }}"
+                                       data-answer-id="{{ forloop.counter0 }}">
+                                <label class="form-check-label"
+                                       for="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}">
+                                    {{ answer.answer }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                     {% endfor %}
-                </ul>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p>Вопросы не заданы.</p>
-        {% endif %}
+                    <button type="button" class="btn btn-primary check-test-btn ms-auto mt-3">Проверить тест</button>
+                </form>
+                {% else %}
+                <p>Вопросы не заданы.</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
 </div>

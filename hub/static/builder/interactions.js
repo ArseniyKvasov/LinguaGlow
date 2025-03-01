@@ -11,7 +11,7 @@ export function init(taskData = null, selectedTasksData = null) {
             .replace(/on\w+=".*?"/gi, "")
             .replace(/\s*on\w+=".*?"/gi, "")
             .replace(/<iframe[^>]*src\s*=\s*["'](https:\/\/(wordwall\.net|quizlet\.com|miro\.com)[^"']+)["'][^>]*\s*>.*?<\/iframe>/gi, (match, src) => {
-                return `<iframe src="${src}" allowfullscreen></iframe>`;
+                return `<iframe src="${src}" allowfullscreen class="h-100 w-100"></iframe>`;
             });
     }
 
@@ -25,6 +25,7 @@ export function init(taskData = null, selectedTasksData = null) {
     saveButton.addEventListener('click', async () => {
         const title = titleInput.value.trim();
         const embedCode = sanitizeInput(embedInput.value.trim());
+        console.log(title, embedCode);
 
         if (!title || !embedCode.includes('<iframe')) {
             alert("Введите корректное название и iframe-код.");

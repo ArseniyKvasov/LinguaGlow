@@ -32,7 +32,8 @@ def search_images(request):
         params = {
             'q': encoded_query,  # Используем quote_plus вместо quote
             'page': page,
-            'page_size': 6,
+            'page_size': 12,
+            'license_type': 'all',
         }
 
         try:

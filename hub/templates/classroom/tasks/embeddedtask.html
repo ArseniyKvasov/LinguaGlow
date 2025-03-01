@@ -1,7 +1,14 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    <div>{{ task.content_object.embed_code|safe }}</div>
-    <button class="btn btn-primary edit-task-button" data-task-id="{{ task.id }}" data-task-type="interactions">Редактировать</button>
-    <button class="btn btn-danger delete-task-button" data-task-id="{{ task.id }}">Удалить</button>
+<div class="task-item vh-100 mb-3" id="task-{{ task.id }}" data-task-type="embeddedtask">
+    <div class="card h-100 border-0 shadow-lg rounded">
+        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
+            <span class="badge bg-primary text-white fs-6">Interaction Task</span>
+        </div>
+        <div class="card-body p-0"> <!-- p-0 убирает внутренние отступы -->
+            <div class="embed-responsive embed-responsive-16by9 h-100 w-100">
+                {{ task.content_object.embed_code|safe }}
+            </div>
+        </div>
+    </div>
 </div>

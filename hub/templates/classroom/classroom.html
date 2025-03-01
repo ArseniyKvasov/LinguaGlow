@@ -14,19 +14,32 @@
 </head>
 <body>
 
-<!-- В шапку добавить выбор ученика для учителя -->
+
 {% if user in teachers %}
-<div class="teacher-controls mt-3 me-3 fixed">
-  <select class="form-select" id="studentSelector-{{ task.id }}">
-    <option value="">Выберите ученика</option>
+<div class="teacher-controls fixed-bottom" style="max-width: 30vw; bottom: 10px; left: 10px;">
+  <select class="form-select student-selector" id="studentSelector-{{ task.id }}">
     {% for student in students %}
-    <option value="{{ student.id }}">{{ student }}</option>
+    <option value="{{ student.id }}" data-username="{{ student.username }}">{{ student }}</option>
     {% endfor %}
   </select>
 </div>
+
+<div class="teacher-antitranslator sticky-bottom" style="bottom: 10px; right: 10px; max-width: 30vw;">
+  <select class="form-select" id="antitranslator">
+    <option value="" disabled selected>Проверить на списывание</option>
+    <option value="check">Проверить</option>
+  </select>
+  <select class="form-select" id="anticopying">
+    <option value="" disabled selected>Запретить копирование</option>
+    <option value="block">Запретить</option>
+    <option value="allow">Разрешить</option>
+  </select>
+  <div class="antitranslator-result"></div>
+</div>
 {% endif %}
 
-<div class="container my-5">
+
+<div class="container my-5 main-task-container">
     <div class="row g-4 text-break">
         <!-- Основной контент -->
         <div class="col-md-9">
@@ -48,6 +61,7 @@
                     </div>
                     {% for task in section.tasks %}
                         {% with task.content_type.model as model %}
+                            <p class="text-white protection-element invisible" style="font-size: 0.01px;">protection element</p>
                             {% include 'classroom/tasks/'|add:model|add:'.html' with task=task %}
                         {% endwith %}
                     {% endfor %}
@@ -119,6 +133,9 @@
 <script src="{% static 'classroom/classroom.js' %}"></script>
 <script src="{% static 'classroom/display.js' %}"></script>
 <script src="{% static 'classroom/test.js' %}"></script>
+<script src="{% static 'classroom/unscramble.js' %}"></script>
+<script src="{% static 'classroom/labelimages.js' %}"></script>
+<script src="{% static 'classroom/fillblanks.js' %}"></script>
 
 </body>
 </html>

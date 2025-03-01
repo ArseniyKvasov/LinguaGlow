@@ -1,98 +1,88 @@
 // Добавляем обработчики событий для всех кнопок
-function addMatchWordsButtonsListeners(taskContainer) {
-    const taskId = taskContainer.id.replace('task-', '');
-    // Находим кнопку сброса
-    const resetButton = taskContainer.querySelector('.reset-button');
+document.addEventListener("DOMContentLoaded", () => {
+    const taskContainers = document.querySelectorAll('.task-item');
+    taskContainers.forEach(taskContainer => {
+        if (taskContainer.dataset.taskType === 'match-words') {
+            const taskId = taskContainer.id.replace('task-', '');
 
-    // Добавляем обработчик события
-    resetButton.addEventListener('click', () => {
-        // Отправляем сообщение о сбросе
-        sendMessage('reset', 'all', {
-            task_id: taskId,
-            classroom_id: classroomId,
-            type: 'match_words',
-        });
+            const buttons = taskContainer.querySelectorAll('.match-btn');
 
-        // Сохраняем сброшенное состояние
-        saveUserAnswer(taskId, classroomId, {}, "reset");
+            let selectedWordButton = null; // Выбранная кнопка из первой колонки
+            let selectedTranslationButton = null; // Выбранная кнопка из второй колонки
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Если кнопка уже выбрана, ничего не делаем
+                    if (button.classList.contains('active')) {
+                        return;
+                    }
+
+                    // Если кнопка из первой колонки (data-word)
+                    if (button.hasAttribute('data-word')) {
+                        // Если уже выбрана другая кнопка из первой колонки, снимаем выделение
+                        if (selectedWordButton) {
+                            selectedWordButton.classList.remove('active');
+                        }
+                        selectedWordButton = button; // Запоминаем выбранную кнопку
+                        button.classList.add('active'); // Добавляем класс active
+                    }
+
+                    // Если кнопка из второй колонки (data-translation)
+                    if (button.hasAttribute('data-translation')) {
+                        // Если уже выбрана другая кнопка из второй колонки, снимаем выделение
+                        if (selectedTranslationButton) {
+                            selectedTranslationButton.classList.remove('active');
+                        }
+                        selectedTranslationButton = button; // Запоминаем выбранную кнопку
+                        button.classList.add('active'); // Добавляем класс active
+                    }
+
+                    // Если выбраны обе кнопки (одна из первой колонки и одна из второй)
+                    if (selectedWordButton && selectedTranslationButton) {
+                        // Получаем значения data-word и data-translation
+                        const word = selectedWordButton.getAttribute('data-word');
+                        const translation = selectedTranslationButton.getAttribute('data-translation');
+
+                        // Убираем класс active
+                        selectedWordButton.classList.remove('active');
+                        selectedTranslationButton.classList.remove('active');
+
+                        // Проверяем, правильно ли сопоставлены слова
+                        const isCorrect = checkPairCorrectness(word, translation);
+
+                        // Формируем payload
+                        const payload = {
+                            task_id: taskId, // Извлекаем task_id из id контейнера
+                            word: word,
+                            translation: translation,
+                            score: isCorrect ? 1 : -1, // 1 за правильный ответ, -1 за неправильный
+                        };
+
+                        // Отправляем сообщение
+                        sendMessage('match_pair', 'all', payload);
+                        saveUserAnswer(taskId, classroomId, payload)
+
+                        const scoreDisplay = taskContainer.querySelector('.score-value');
+                        if (isCorrect) {
+                            scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) + 1;
+                        } else {
+                            scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) - 1;
+                        }
+                        if (scoreDisplay.dataset.realScore >= 0) {
+                            scoreDisplay.innerText = scoreDisplay.dataset.realScore;
+                        }
+
+                        // Сбрасываем выбранные кнопки
+                        selectedWordButton = null;
+                        selectedTranslationButton = null;
+                    }
+                });
+            });
+            // Перемешиваем слова в колонках
+            resizeMatchWords(taskContainer, true);
+        }
     });
-
-    const buttons = taskContainer.querySelectorAll('.match-btn');
-
-    let selectedWordButton = null; // Выбранная кнопка из первой колонки
-    let selectedTranslationButton = null; // Выбранная кнопка из второй колонки
-
-    buttons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Если кнопка уже выбрана, ничего не делаем
-            if (button.classList.contains('active')) {
-                return;
-            }
-
-            // Если кнопка из первой колонки (data-word)
-            if (button.hasAttribute('data-word')) {
-                // Если уже выбрана другая кнопка из первой колонки, снимаем выделение
-                if (selectedWordButton) {
-                    selectedWordButton.classList.remove('active');
-                }
-                selectedWordButton = button; // Запоминаем выбранную кнопку
-                button.classList.add('active'); // Добавляем класс active
-            }
-
-            // Если кнопка из второй колонки (data-translation)
-            if (button.hasAttribute('data-translation')) {
-                // Если уже выбрана другая кнопка из второй колонки, снимаем выделение
-                if (selectedTranslationButton) {
-                    selectedTranslationButton.classList.remove('active');
-                }
-                selectedTranslationButton = button; // Запоминаем выбранную кнопку
-                button.classList.add('active'); // Добавляем класс active
-            }
-
-            // Если выбраны обе кнопки (одна из первой колонки и одна из второй)
-            if (selectedWordButton && selectedTranslationButton) {
-                // Получаем значения data-word и data-translation
-                const word = selectedWordButton.getAttribute('data-word');
-                const translation = selectedTranslationButton.getAttribute('data-translation');
-
-                // Убираем класс active
-                selectedWordButton.classList.remove('active');
-                selectedTranslationButton.classList.remove('active');
-
-                // Проверяем, правильно ли сопоставлены слова
-                const isCorrect = checkPairCorrectness(word, translation);
-
-                // Формируем payload
-                const payload = {
-                    task_id: taskId, // Извлекаем task_id из id контейнера
-                    word: word,
-                    translation: translation,
-                    score: isCorrect ? 1 : -1, // 1 за правильный ответ, -1 за неправильный
-                };
-
-                // Отправляем сообщение
-                sendMessage('match_pair', 'all', payload);
-                saveUserAnswer(taskId, classroomId, payload)
-
-                const scoreDisplay = taskContainer.querySelector('.score-value');
-                if (isCorrect) {
-                    scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) + 1;
-                } else {
-                    scoreDisplay.dataset.realScore = parseInt(scoreDisplay.dataset.realScore) - 1;
-                }
-                if (scoreDisplay.dataset.realScore >= 0) {
-                    scoreDisplay.innerText = scoreDisplay.dataset.realScore;
-                }
-
-                // Сбрасываем выбранные кнопки
-                selectedWordButton = null;
-                selectedTranslationButton = null;
-            }
-        });
-    });
-    // Перемешиваем слова в колонках
-    resizeMatchWords(taskContainer, true);
-}
+});
 
 function checkPairCorrectness(word, translation) {
     // Находим контейнер с правильными парами

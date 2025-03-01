@@ -33,7 +33,18 @@
                 <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.words|length }} баллов
             </div>
         </div>
+
+        <div class="stats-container" style="display: none;">
+            <div class="scroll-wrapper d-flex justify-content-center" style="overflow-x: hidden; white-space: nowrap;">
+                <div class="stats-columns d-flex justify-content-center align-items-end w-100 position-relative"
+                     style="height: 200px; gap: 20px; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
+                    <!-- Колонки будут добавляться динамически -->
+                </div>
+            </div>
+        </div>
     </div>
+
+    {% if user in teachers %}
     <div class="action-buttons d-flex justify-content-end mb-4 align-items-center">
         <button class="btn btn-warning reset-button me-2">
             <i class="bi bi-arrow-clockwise"></i>
@@ -42,4 +53,5 @@
             <i class="bi bi-eye-slash-fill"></i>
         </button>
     </div>
+    {% endif %}
 </div>

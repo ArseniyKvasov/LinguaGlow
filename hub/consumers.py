@@ -33,31 +33,17 @@ class ClassroomConsumer(AsyncWebsocketConsumer):
             print(f"Received message from {sender} in classroom {self.classroom_id}:")
             print(f"Type: {message_type}, Payloads: {payloads}, Receivers: {receivers}")
 
-            # Determine the recipients based on the receivers field
-            if receivers == 'all':
-                # Send to all users except the sender
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message_type': message_type,
-                        'sender': sender,
-                        'payloads': payloads,
-                        'receivers': receivers,
-                    }
-                )
-            else:
-                # Send to specified users
-                await self.channel_layer.group_send(
-                    self.room_group_name,
-                    {
-                        'type': 'chat_message',
-                        'message_type': message_type,
-                        'sender': sender,
-                        'payloads': payloads,
-                        'receivers': receivers,
-                    }
-                )
+            # Send to specified users
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'message_type': message_type,
+                    'sender': sender,
+                    'payloads': payloads,
+                    'receivers': receivers,
+                }
+            )
 
         except json.JSONDecodeError as e:
             print(f"JSON decode error: {e}")
@@ -74,7 +60,7 @@ class ClassroomConsumer(AsyncWebsocketConsumer):
         print(f"Sending to group {self.room_group_name}: {message_type} from {sender}")
 
         # Check if the message should be sent to this client
-        if receivers == 'all' or self.scope['user'].username == receivers:
+        if receivers == 'all' or self.scope['user'].username in receivers:
             # Send the message to the client
             await self.send(text_data=json.dumps({
                 'message_type': message_type,
