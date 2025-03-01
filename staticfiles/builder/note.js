@@ -19,7 +19,8 @@ export function init(taskData = null, selectedTasksData = null) {
     // Обработчик для кнопки "Сохранить"
     saveNoteButton.addEventListener('click', async () => {
         const title = noteTitleInput.value.trim();
-        const content = noteContentInput.value.trim();
+        const content = convertMarkdownToHTML(noteContentInput.value.trim());
+        console.log('after', content);
 
         if (!title) {
             alert('Поле "Заголовок" не может быть пустым.');

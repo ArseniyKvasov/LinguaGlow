@@ -104,7 +104,7 @@ export function init(taskData = null, selectedTasksData = null) {
       return `
         <div class="task-item" id="task-${task.id}">
           <div class="fill-in-the-blanks-item">
-            <h3>${convertMarkdownToHTML(task.content.title)}</h3>
+            <h3>${task.content.title}</h3>
 
             ${task.content.display_format === "list" ? `
               <div class="missing-words-list">
@@ -114,7 +114,7 @@ export function init(taskData = null, selectedTasksData = null) {
             ` : ''}
 
             <p id="task-text-${task.id}">
-              ${convertMarkdownToHTML(task.content.text)}
+              ${task.content.text}
             </p>
 
             <div class="task-buttons">
