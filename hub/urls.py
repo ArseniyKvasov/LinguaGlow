@@ -29,4 +29,6 @@ urlpatterns = [
     path('save_user_answer/', views.save_user_answer, name='save_user_answer'),
     path('get_solved_tasks/', views.get_solved_tasks, name='get_solved_tasks'),
     path('get_stats/', views.get_stats, name='get_stats'),
+
+    path('', views.index, name='index'),
 ]

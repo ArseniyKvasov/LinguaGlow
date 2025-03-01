@@ -743,6 +743,9 @@ def fillInTheBlanksAI(request, payloads):
 
     return json.dumps(formatted_sentences, ensure_ascii=False)
 
+def index(request):
+    return render(request, 'index.html')
+
 
 def choose_classroom(request, lesson_id):
     """Страница выбора класса с AJAX-поддержкой."""
