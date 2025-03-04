@@ -84,9 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-function checkPairCorrectness(word, translation) {
+function checkPairCorrectness(taskContainer, word, translation) {
     // Находим контейнер с правильными парами
-    const correctPairsContainer = document.querySelector('.correct-pairs');
+    const correctPairsContainer = taskContainer.querySelector('.correct-pairs');
     // Получаем данные о правильных парах из атрибута data-pairs
     const correctPairs = JSON.parse(correctPairsContainer.getAttribute('data-pairs'));
 
@@ -103,7 +103,8 @@ function handlePairSelection(task_id, word, translation, animation=true) {
     const taskContainer = document.getElementById(`task-${task_id}`);
 
     // Проверяем корректность пары
-    const isCorrect = checkPairCorrectness(word, translation);
+    const isCorrect = checkPairCorrectness(taskContainer, word, translation);
+    console.log(isCorrect, word, translation);
 
     // Находим кнопки, соответствующие выбранным слову и переводу
     const wordButton = taskContainer.querySelector(`.match-btn[data-word="${word}"]`);
