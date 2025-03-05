@@ -45,8 +45,7 @@ function handleLabelInput(event) {
 // Инициализация задания
 function initLabelImagesTask() {
     document.querySelectorAll('.label-image').forEach(input => {
-        console.log('find label image');
-        input.addEventListener('keydown', handleLabelInput); // Слушаем нажатие Enter
+        input.addEventListener('blur', handleLabelInput); // Слушаем потерю фокуса
     });
 }
 

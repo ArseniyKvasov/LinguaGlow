@@ -68,6 +68,7 @@ export function init(taskData = null, selectedTasksData = null) {
         labelImagesBlock.addEventListener('dragover', handleDragOverLabelImages);
         labelImagesBlock.addEventListener('dragleave', handleDragLeaveLabelImages);
         labelImagesBlock.addEventListener('drop', handleDropLabelImages);
+        labelImagesBlock.addEventListener('paste', handlePasteLabelImages);
         previewLabelImagesContainer.addEventListener('click', () => handleFileUploadLabelImages());
 
         searchLabelImagesButton.addEventListener('click', async () => {
@@ -192,6 +193,22 @@ export function init(taskData = null, selectedTasksData = null) {
             reader.readAsDataURL(file);
         }
 
+        function handlePasteLabelImages(e) {
+            // Получаем данные из буфера обмена
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+
+            // Ищем изображение среди вставленных данных
+            for (const item of items) {
+                if (item.type.startsWith('image/')) {
+                    const file = item.getAsFile(); // Получаем файл изображения
+                    if (file) {
+                        handleFileLabelImages(file); // Обрабатываем файл
+                        break;
+                    }
+                }
+            }
+        }
+
         function updatePreviewLabelImages() {
             infoText.style.display = 'none';
             if (selectedLabelImagesUrl) {
@@ -259,6 +276,8 @@ export function init(taskData = null, selectedTasksData = null) {
         labelImagesBlocksData.push(blockData);
         labelImagesBlocksContainer.appendChild(newBlock);
         newBlock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const newQueryInput = newBlock.querySelector('.query-input');
+        newQueryInput.focus();
     });
 
     searchAllLabelImagesButton.addEventListener('click', () => {
