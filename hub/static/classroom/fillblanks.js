@@ -3,7 +3,6 @@ function fillBlanksHandleInput(event, isRemote=false) {
     const correctAnswer = input.dataset.correct;
     const taskId = input.dataset.taskId;
     const blankId = input.dataset.blankId;
-    console.log(isRemote);
 
     // Проверяем, является ли событие удаленным
     const isRemoteEvent = event.isRemote || isRemote;
@@ -74,11 +73,7 @@ function fillBlanksHandleInput(event, isRemote=false) {
 // Инициализация для новых инпутов
 function fillBlanksInit() {
     document.querySelectorAll('.blank-input:not([disabled])').forEach(input => {
-        input.addEventListener('keydow', function (event) {
-            // Передаем isRemote из события, если оно есть
-            fillBlanksHandleInput(event, event.isRemote);
-        });
-
+        input.addEventListener('blur', fillBlanksHandleInput);
 
 
         // Подсказка для учителей
