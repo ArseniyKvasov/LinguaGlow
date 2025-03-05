@@ -8,78 +8,78 @@ function fillBlanksHandleInput(event, isRemote=false) {
     // Проверяем, является ли событие удаленным
     const isRemoteEvent = event.isRemote || isRemote;
 
-    if (event.key === 'Enter') {
-        const isCorrect = input.value.trim().toLowerCase() === correctAnswer.toLowerCase();
+    const isCorrect = input.value.trim().toLowerCase() === correctAnswer.toLowerCase();
 
-        // Визуальная обратная связь
-        input.classList.remove('correct-answer', 'incorrect-answer');
-        input.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+    // Визуальная обратная связь
+    input.classList.remove('correct-answer', 'incorrect-answer');
+    input.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
 
-        if (isCorrect) {
-            input.disabled = true;
+    if (isCorrect) {
+        input.disabled = true;
 
-            // Находим соответствующее слово в списке и отмечаем его как использованное
-            const wordItem = document.querySelector(`.word-item[data-word="${correctAnswer}"]:not(.used)`);
-            if (wordItem) {
-                wordItem.classList.add('used'); // Зачеркиваем и делаем полупрозрачным
-            }
-
-            // Переход к следующему пропуску
-            const nextInput = input.parentElement.nextElementSibling?.querySelector('.blank-input');
-            nextInput?.focus();
-
-            if (!isRemoteEvent) {
-                // Сохранение ответа
-                saveUserAnswer(taskId, classroomId, {
-                    blankId: blankId,
-                    answer: input.value,
-                    type: 'fill_blank'
-                });
-
-                // Отправка сообщения о завершении
-                sendMessage('FILL_BLANK_ANSWER', "all", {
-                    taskId: taskId,
-                    blankId: blankId,
-                    status: 'completed',
-                    answer: input.value
-                });
-            }
-        } else {
-            // Неверный ответ - анимация
-            if (!isRemoteEvent) {
-                // Сохранение ответа
-                saveUserAnswer(taskId, classroomId, {
-                    blankId: blankId,
-                    answer: input.value,
-                    type: 'fill_blank'
-                });
-
-                // Отправка сообщения о завершении
-                sendMessage('FILL_BLANK_ANSWER', "all", {
-                    taskId: taskId,
-                    blankId: blankId,
-                    status: 'incorrect',
-                    answer: input.value
-                });
-            }
-
-            input.style.transform = 'translateX(5px)';
-            setTimeout(() => { input.style.transform = ''; }, 100);
+        // Находим соответствующее слово в списке и отмечаем его как использованное
+        const wordItem = document.querySelector(`.word-item[data-word="${correctAnswer}"]:not(.used)`);
+        if (wordItem) {
+            wordItem.classList.add('used'); // Зачеркиваем и делаем полупрозрачным
         }
+
+        // Переход к следующему пропуску
+        const nextInput = input.parentElement.nextElementSibling?.querySelector('.blank-input');
+        nextInput?.focus();
+
+        if (!isRemoteEvent) {
+            // Сохранение ответа
+            saveUserAnswer(taskId, classroomId, {
+                blankId: blankId,
+                answer: input.value,
+                type: 'fill_blank'
+            });
+
+            // Отправка сообщения о завершении
+            sendMessage('FILL_BLANK_ANSWER', "all", {
+                taskId: taskId,
+                blankId: blankId,
+                status: 'completed',
+                answer: input.value
+            });
+        }
+    } else {
+        // Неверный ответ - анимация
+        if (!isRemoteEvent) {
+            // Сохранение ответа
+            saveUserAnswer(taskId, classroomId, {
+                blankId: blankId,
+                answer: input.value,
+                type: 'fill_blank'
+            });
+
+            // Отправка сообщения о завершении
+            sendMessage('FILL_BLANK_ANSWER', "all", {
+                taskId: taskId,
+                blankId: blankId,
+                status: 'incorrect',
+                answer: input.value
+            });
+        }
+
+        input.style.transform = 'translateX(5px)';
+        setTimeout(() => { input.style.transform = ''; }, 100);
     }
 
     // Автоматическое изменение ширины
-    input.style.width = '100px';
-    input.style.width = Math.max(input.scrollWidth, 100) + 'px';
+    input.style.width = '60px';
+    input.style.width = Math.max(input.scrollWidth+10, 60) + 'px';
 }
 
 // Инициализация для новых инпутов
 function fillBlanksInit() {
     document.querySelectorAll('.blank-input:not([disabled])').forEach(input => {
-        input.addEventListener('keydown', function (event) {
+        input.addEventListener('keydow', function (event) {
             // Передаем isRemote из события, если оно есть
             fillBlanksHandleInput(event, event.isRemote);
         });
+
+
 
         // Подсказка для учителей
         input.addEventListener('mouseenter', function (e) {

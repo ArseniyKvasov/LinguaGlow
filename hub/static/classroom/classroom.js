@@ -140,7 +140,7 @@ socket.onmessage = function (event) {
         let taskElement = document.getElementById(`task-${data.payloads.task_id}`);
         if (taskElement) {
             let emptySlot = taskElement.querySelector(".empty-slot");
-            let letterButton = taskElement.querySelector(`.letter-button[data-letter='${data.payloads.letter}']`);
+            let letterButton = document.querySelector(`.letter-button:not([disabled])[data-letter='${data.payloads.letter}']`);
 
             if (emptySlot && letterButton) {
                 emptySlot.textContent = data.payloads.letter;
@@ -361,7 +361,7 @@ async function loadSavedTasks(taskContainer, type, selectedUserId) {
                     if (input) {
                         input.value = blank.answer; // Вставляем сохраненный ответ
                         // Имитация нажатия Enter с учетом флага isRemote
-                        const event = new KeyboardEvent('keydown', { key: 'Enter' });
+                        const event = new KeyboardEvent('blur');
                         event.isRemote = true; // Добавляем кастомное свойство
                         input.dispatchEvent(event);
                     }
@@ -491,6 +491,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveUserAnswer(taskId, classroomId, {}, "reset");
             })
         }
+    });
+
+    const contextButtons = document.querySelectorAll('.add-context-btn');
+    contextButtons.forEach(button => {
+        button.style.display = "none";
     });
 });
 

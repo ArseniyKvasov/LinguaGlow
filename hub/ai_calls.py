@@ -5,10 +5,8 @@ import json
 from urllib.parse import quote_plus
 from django.core.cache import cache
 from django.http import JsonResponse
-from django_ratelimit.decorators import ratelimit
 
-
-@ratelimit(key='user_or_ip', rate='150/m', block=True)
+"""
 def search_images(request):
     if request.method == 'POST':
         query = request.POST.get('query', '').strip()
@@ -60,8 +58,79 @@ def search_images(request):
             return JsonResponse({'error': f'Failed to process response: {str(e)}'}, status=500)
 
     return JsonResponse({'error': 'Invalid request method'}, status=405)
+"""
 
-@ratelimit(key='user_or_ip', rate='10/m', block=True)
+
+def search_images(request):
+    if request.method == 'POST':
+        query = request.POST.get('query', '').strip()
+        if not query:
+            return JsonResponse({'error': 'Query is required'}, status=400)
+
+        # Убираем лишние пробелы
+        query = re.sub(r'\s+', ' ', query)
+
+        page = int(request.POST.get('page', 0))
+        query_hash = hashlib.md5(query.encode()).hexdigest()
+        cache_key = f'yandex_image_search_{query_hash}_{page}'
+
+        # Проверяем кеш
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return JsonResponse(cached_data)
+
+        # Кодируем запрос
+        encoded_query = quote_plus(query)
+
+        # Параметры запроса
+        params = {
+            "folderid": "b1g3l54o4p5s9cscjeni",
+            "apikey": "AQVNzUQUbAXZMOw1cTK3VjgYEm42ZQL5tz0jI0eH",
+            "text": encoded_query,         # Поисковый запрос
+            "fyandex": 1,                  # Включить семейный поиск
+        }
+
+        # URL для международного поиска
+        url = 'https://yandex.ru/images-xml'
+
+        try:
+            # Выполняем запрос к Yandex Search API
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+
+            # Парсим XML-ответ
+            from xml.etree import ElementTree as ET
+            root = ET.fromstring(response.content)
+
+            # Извлекаем данные о картинках
+            images = []
+            for group in root.findall('.//group'):
+                error = root.find('.//error')
+                if error is not None:
+                    return JsonResponse({'error': error.text}, status=500)
+                url = group.find('.//url').text
+                title = group.find('.//title')
+                if title is not None:
+                    title = title.text
+                else:
+                    title = ""  # или любое другое значение по умолчанию
+                print(url, title)
+                if url:
+                    images.append({'url': url, 'title': title})
+
+            # Кешируем результаты
+            cache.set(cache_key, {'images': images}, timeout=300)
+            return JsonResponse({'images': images})
+
+        except requests.exceptions.RequestException as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        except Exception as e:
+            return JsonResponse({'error': f'Failed to process response: {str(e)}'}, status=500)
+
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+
 def text_generation(request, query, size_limit):
     url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
     headers = {
@@ -71,7 +140,7 @@ def text_generation(request, query, size_limit):
     data = {
         "folderID": "b1g3l54o4p5s9cscjeni",
         "modelUri": "gpt://b1g3l54o4p5s9cscjeni/yandexgpt/rc",
-        "completionOptions": {"maxTokens": 2000, "temperature": 0.5},
+        "completionOptions": {"maxTokens": 10000, "temperature": 0.5},
         "messages": [
             {"role": "user",
              "text": query}
