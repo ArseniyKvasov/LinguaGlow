@@ -1,9 +1,5 @@
 // Обработка ввода подписи
 function handleLabelInput(event) {
-    console.log('Key pressed:', event.key); // Проверяем, какая клавиша нажата
-
-    if (event.key !== 'Enter') return; // Проверяем только по нажатию Enter
-
     const input = event.target;
     const taskId = input.dataset.taskId;
     const imageId = input.dataset.imageId;
