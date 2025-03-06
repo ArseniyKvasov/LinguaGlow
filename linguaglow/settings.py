@@ -156,3 +156,5 @@ CACHES = {
 }
 
 RATELIMIT_ENABLE = True
+
+LOGIN_URL = '/users/login/'
