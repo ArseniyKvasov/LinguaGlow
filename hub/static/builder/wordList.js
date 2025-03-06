@@ -165,20 +165,29 @@ export function init(taskData = null, selectedTasksData = null) {
 
     function newTaskHtml(task) {
         return `
-            <div class="task-item" id="task-${task.id}" data-task-type="wordlist">
-                <div class="word-list-item">
-                    <input type="checkbox" class="task-checkbox" data-task-id="${ task.id }" checked>
-                    <label for="task-${ task.id }"></label>
-                    <h3>${task.content['title']}</h3>
-                    ${Object.entries(task.content['words']).map(([word, translation]) => `
-                        <div class="row g-3">
-                            <div class="col-6 card shadow p-2 text-center">${word}</div>
-                            <div class="col-6 card shadow p-2 text-center">${translation}</div>
-                        </div>
-                    `).join('')}
+            <div class="task-item card mb-4 border-0 shadow-sm" id="task-${task.id}" data-task-type="wordlist">
+                <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
+                    <button class="add-context-btn my-2 btn btn-primary">+</button>
+                    <h3 class="card-title mb-0 text-primary fw-bold">${task.title}</h3>
                 </div>
-                <button class="btn btn-primary edit-task-button" data-task-id="${ task.id }" data-task-type="wordlist">Редактировать</button>
-                <button class="btn btn-danger delete-task-button" data-task-id="${ task.id }">Удалить</button>
+
+                <div class="card-body bg-light bg-opacity-25">
+                    <div class="row g-3">
+                        ${Object.entries(task.words).map(([word, translation]) => `
+                            <div class="col-12 col-md-6">
+                                <div class="card border-success border-opacity-25 h-100">
+                                    <div class="card-body py-3">
+                                        <div class="d-flex justify-content-between align-items-center my-auto">
+                                            <span class="fw-bold text-success text-start">${word}</span>
+                                            <i class="bi bi-arrow-right-short fs-4 text-muted px-2"></i>
+                                            <span class="fw-bold text-success text-end">${translation}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -215,17 +224,27 @@ export function init(taskData = null, selectedTasksData = null) {
             if (result.success) {
                 if (!taskData) {
                     const loadedTasks = document.getElementById('loadedTasks');
-                    loadedTasks.insertAdjacentHTML('beforeend', newTaskHtml(result.task));
+                    const taskHtml = newTaskHtml(result.task);
+                    loadedTasks.insertAdjacentHTML('beforeend', taskHtml);
                     const newTaskElement = document.getElementById(`task-${result.task.id}`);
+                    const addContextBtn = newTaskElement.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = document.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     if (newTaskElement) {
                         newTaskElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                     document.getElementById('overlay').style.display = 'none';
                 } else {
                     const updatedTaskHtml = newTaskHtml(result.task);
-
                     const elementToUpdate = document.getElementById(`task-${result.task.id}`);
                     elementToUpdate.innerHTML = updatedTaskHtml;
+                    const addContextBtn = elementToUpdate.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = document.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     document.getElementById('overlay').style.display = 'none';
                     elementToUpdate.scrollIntoView({ block: 'start' });
                 }
