@@ -118,7 +118,47 @@ const activityHandlers = {
             init(taskData, selectedTasksData);
         },
     },
+    audio: {
+        container: document.getElementById('audioFormContainer'),
+        init: async (taskData = null, selectedTasksData = null) => {
+            const { init } = await import('./audio.js');
+            init(taskData, selectedTasksData);
+        },
+    },
 };
+
+function addDataToContext(contextTextarea, button) {
+    const container = button.closest('å.task-item');
+    const taskId = container.id.replace('task-', '');
+    const taskType = container.dataset.taskType;
+
+    fetchTaskData(taskId).then(taskData => {
+        let content = '';
+        switch (taskType) {
+            case 'wordlist':
+                content = `Список слов ${taskData.title}\n${JSON.stringify(taskData.words, null, 2)}`;
+                break;
+            case 'note':
+                content = `Заметка ${taskData.title}\n${taskData.content}`;
+                break;
+            case 'article':
+                content = `Статья ${taskData.title}\n${taskData.content}`;
+                break;
+            default:
+                content = '';
+        }
+
+        // Добавляем текст в текстовое поле
+        if (contextTextarea.value) {
+            contextTextarea.value += '\n\n' + content;
+        } else {
+            contextTextarea.value = content;
+        }
+
+        // Сохраняем текст в localStorage
+        localStorage.setItem('contextText', contextTextarea.value);
+    });
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const addActivityButton = document.getElementById('addActivityButton');
@@ -132,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const viewContentButton = document.querySelector('.view-content-button');
     const selectedContentDiv = document.getElementById('selected-content');
     let selectedTasks = [];
+    const contextTextarea = document.getElementById('context-textarea');
+    const addButtons = document.querySelectorAll('.add-context-btn');
 
     // Показываем блок при нажатии на кнопку "Добавить задание"
     addActivityButton.addEventListener('click', () => {
@@ -157,6 +199,17 @@ document.addEventListener('DOMContentLoaded', () => {
         activityCreationBlock.style.display = 'none';
     });
 
+    // Загружаем сохраненный текст из localStorage
+    if (localStorage.getItem('contextText')) {
+        contextTextarea.value = localStorage.getItem('contextText');
+    }
+    // Добавляем обработчик для каждой кнопки "+"
+    addButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            addDataToContext(contextTextarea, button);
+        });
+    });
+
     activityBlock.addEventListener('click', async (event) => {
         const button = event.target.closest('button[data-activity-type]');
         if (!button) return;
@@ -177,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activityCreationBlock.style.display = 'block';
             activityBlock.style.display = 'none';
 
-            const selectedTasksData = await uploadSelectedTasksData();
+            const selectedTasksData = contextTextarea.value;
             await init(null, selectedTasksData);
         } else {
             console.error(`Неизвестный тип задания: ${activityType}`);
@@ -246,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             activityBlock.style.display = 'none';
             addActivityButton.style.display = 'none';
 
-            const selectedTasksData = await uploadSelectedTasksData();
+            const selectedTasksData = contextTextarea.value;
             init(taskData, selectedTasksData);
         } else {
             console.error(`Неизвестный тип задания: ${taskType}`);
@@ -269,70 +322,6 @@ async function fetchTaskData(taskId) {
         console.error('Ошибка при загрузке данных задания:', error);
         return null;
     }
-}
-
-async function uploadSelectedTasksData() {
-    // Обработчик для выбора чекбоксов
-    const checkboxes = document.querySelectorAll('.task-checkbox');
-    const selectedTasks = [];
-    checkboxes.forEach(function(checkbox) {
-        if (checkbox.checked) {
-            selectedTasks.push(checkbox.dataset.taskId);
-        }
-    });
-
-    const promises = selectedTasks.map(async taskId => {
-        const taskElement = document.getElementById(`task-${taskId}`);
-        const taskData = await fetchTaskData(taskId);
-        switch (taskElement.dataset.taskType) {
-            case 'wordlist':
-                return `Список слов ${taskData.title}\n${JSON.stringify(taskData.words, null, 2)}`;
-            case 'note':
-                return `Заметка ${taskData.title}\n${taskData.content}`;
-            case 'article':
-                return `Статья ${taskData.title}\n${taskData.content}`;
-            default:
-                return '';
-        }
-    });
-
-    const contents = await Promise.all(promises);
-    let totalContent = contents.join('\n\n');
-    console.log(totalContent);
-    console.log(totalContent.length);
-
-    if (totalContent.length > 2500) {
-        alert('Длина выбранного контента превышена. Некоторые задания больше не будут учитываться при генерации. Попробуйте выбрать меньше заданий или уменьшите их размер.');
-    }
-
-    // Если количество символов превышает 2500, удаляем наиболее ранние элементы
-    while (totalContent.length > 2500) {
-        const removedTaskId = selectedTasks.shift(); // Удаляем наиболее ранний элемент
-        const removedTaskElement = document.getElementById(`task-${removedTaskId}`);
-        removedTaskElement.querySelector('.task-checkbox').checked = false; // Снимаем галочку
-
-        // Обновляем обещания и общее содержимое
-        const updatedPromises = selectedTasks.map(async taskId => {
-            const taskElement = document.getElementById(`task-${taskId}`);
-            const taskData = await fetchTaskData(taskId);
-            switch (taskElement.dataset.taskType) {
-                case 'wordlist':
-                    return `Список слов ${taskData.title}\n${JSON.stringify(taskData.words, null, 2)}`;
-                case 'note':
-                    return `Заметка ${taskData.title}\n${taskData.content}`;
-                case 'article':
-                    return `Статья ${taskData.title}\n${taskData.text}`;
-                default:
-                    return '';
-            }
-        });
-
-        const updatedContents = await Promise.all(updatedPromises);
-        totalContent = updatedContents.join('\n\n');
-        wordsCount = totalContent.split(/\s+/).filter(word => word !== '').length;
-    }
-
-    return totalContent;
 }
 
 function throttle(func, limit) {
