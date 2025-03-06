@@ -20,7 +20,6 @@ export function init(taskData = null, selectedTasksData = null) {
     saveNoteButton.addEventListener('click', async () => {
         const title = noteTitleInput.value.trim();
         const content = convertMarkdownToHTML(noteContentInput.value.trim());
-        console.log('after', content);
 
         if (!title) {
             alert('Поле "Заголовок" не может быть пустым.');
@@ -56,6 +55,11 @@ export function init(taskData = null, selectedTasksData = null) {
                     const loadedTasks = document.getElementById('loadedTasks');
                     loadedTasks.insertAdjacentHTML('beforeend', taskHtml);
                     const newTaskElement = document.getElementById(`task-${result.task.id}`);
+                    const addContextBtn = newTaskElement.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = document.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     if (newTaskElement) {
                         newTaskElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -63,6 +67,11 @@ export function init(taskData = null, selectedTasksData = null) {
                     // Обновление существующей задачи
                     const elementToUpdate = document.getElementById(`task-${result.task.id}`);
                     elementToUpdate.innerHTML = taskHtml;
+                    const addContextBtn = elementToUpdate.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = document.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     elementToUpdate.scrollIntoView({ block: 'start' });
                 }
 
@@ -76,21 +85,23 @@ export function init(taskData = null, selectedTasksData = null) {
         }
     });
 
-    // Функция для генерации HTML задачи "Заметка"
     function generateNoteHtml(task) {
         return `
             <div class="task-item" id="task-${task.id}" data-task-type="note">
-                <div class="note-item">
-                    <input type="checkbox" class="task-checkbox" data-task-id="${ task.id }" checked>
-                    <label for="task-${ task.id }"></label>
-                    <h3>${task.content.title}</h3>
-                    <p class="noteContent">${task.content.content || ''}</p>
+                <div class="card mb-3 border-0 shadow-lg rounded-3">
+                    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+                        <button class="add-context-btn my-2 btn btn-primary">+</button>
+                        <h3 class="card-title mb-0 text-primary fw-bold">${task.content.title}</h3>
+                        <span class="badge bg-primary text-white fs-6">Note Task</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="article-content mb-4 text-part">${task.content.content || ''}</div>
+                    </div>
                 </div>
-                <button class="btn btn-primary edit-task-button" data-task-id="${task.id}" data-task-type="note">Редактировать</button>
-                <button class="btn btn-danger delete-task-button" data-task-id="${task.id}">Удалить</button>
             </div>
         `;
     }
+
     AINoteButton.addEventListener('click', () => {
         AINoteBlock.style.display = 'block';
         AINoteBlock.scrollIntoView({ behavior: 'smooth' });
