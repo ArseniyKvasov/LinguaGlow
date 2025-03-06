@@ -1,7 +1,7 @@
 {% load static %}
 <div class="task-item card mb-4 border-0 shadow-sm" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
     <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
-        <input type="checkbox" class="form-check-input me-3 task-checkbox" data-task-id="{{ task.id }}">
+        <button class="add-context-btn my-2 btn btn-primary">+</button>
         <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
     </div>
 
