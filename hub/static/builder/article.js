@@ -72,6 +72,11 @@ export function init(taskData = null, selectedTasksData = null) {
                     const loadedTasks = document.getElementById('loadedTasks');
                     loadedTasks.insertAdjacentHTML('beforeend', taskHtml);
                     const newTaskElement = document.getElementById(`task-${result.task.id}`);
+                    const addContextBtn = newTaskElement.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = document.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     if (newTaskElement) {
                         newTaskElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
@@ -79,6 +84,11 @@ export function init(taskData = null, selectedTasksData = null) {
                     // Обновление существующей задачи
                     const elementToUpdate = document.getElementById(`task-${result.task.id}`);
                     elementToUpdate.innerHTML = taskHtml;
+                    const addContextBtn = newTaskElement.querySelector('.add-context-btn');
+                    addContextBtn.addEventListener('click', () => {
+                        const contextTextarea = elementToUpdate.getElementById('context-textarea');
+                        addDataToContext(contextTextarea, addContextBtn);
+                    });
                     elementToUpdate.scrollIntoView({ block: 'start' });
                 }
             }
@@ -175,13 +185,15 @@ export function init(taskData = null, selectedTasksData = null) {
 function createArticleHtml(task) {
     return `
         <div class="task-item" id="task-${task.id}" data-task-type="article">
-            <input type="checkbox" class="task-checkbox" data-task-id="${ task.id }" checked>
-            <label for="task-{{ task.id }}"></label>
-            <div class="article-item">
-                <h3>${convertMarkdownToHTML(task.content.title)}</h3>
-                <div class="article-content">${DOMPurify.sanitize(task.content.content)}</div>
-                <button class="btn btn-primary edit-task-button" data-task-id="${task.id}" data-task-type="article">Редактировать</button>
-                <button class="btn btn-danger delete-task-button" data-task-id="${task.id}">Удалить</button>
+            <div class="card mb-3 border-0 shadow-lg rounded-3">
+                <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+                    <button class="add-context-btn my-2 btn btn-primary">+</button>
+                    <h3 class="card-title mb-0 text-primary fw-bold">${convertMarkdownToHTML(task.content.title)}</h3>
+                    <span class="badge bg-primary text-white fs-6">Article Task</span>
+                </div>
+                <div class="card-body">
+                    <div class="article-content mb-4 text-part">${DOMPurify.sanitize(task.content.content)}</div>
+                </div>
             </div>
         </div>
     `;
