@@ -10,6 +10,7 @@ from django.db import models
 from django.urls import reverse
 import json
 from django.conf import settings
+import uuid
 from datetime import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseForbidden
@@ -20,7 +21,7 @@ from django.contrib.auth.decorators import login_required
 import re
 from django.contrib.contenttypes.models import ContentType
 
-
+@login_required
 def home_view(request):
     username = request.user.username
     return render(request, 'home/home.html', {'username': username})
@@ -90,16 +91,18 @@ def lesson_page_view(request, lesson_id):
     lesson_obj = get_object_or_404(lesson, id=lesson_id)
     course_obj = get_object_or_404(course, id=lesson_obj.course.id)
 
-    if not (request.user == course_obj.user):
+    if request.user != course_obj.user:
         return HttpResponseForbidden("You do not have access to this lesson.")
 
     sections = lesson_obj.sections.all().order_by('order')
+    tasks = BaseTask.objects.filter(section__lesson=lesson_obj).order_by('section__order', 'order')
     classrooms = Classroom.objects.filter(Q(teachers=request.user) | Q(students=request.user)).distinct()
 
-    return render(request, 'builder/lesson_page.html', {
+    return render(request, 'builder/updated_templates/generation.html', {
         'lesson': lesson_obj,
         'section_list': sections,
-        'classrooms': classrooms
+        'tasks': tasks,
+        'classrooms': classrooms,
     })
 
 def delete_lesson(request, lesson_id):
@@ -113,42 +116,51 @@ def delete_lesson(request, lesson_id):
     return HttpResponseRedirect(reverse('lesson_list', args=[course_id]))
 
 def add_section(request, lesson_id):
-    lesson_obj = get_object_or_404(lesson, id=lesson_id)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            section_name = data.get('name')
 
-    if request.method == "POST":
-        name = request.POST.get('name')
-        topic = request.POST.get('topic')
+            if not section_name:
+                return JsonResponse({'error': 'Название раздела не может быть пустым'}, status=400)
 
-        max_order = lesson_obj.sections.aggregate(Max('order'))['order__max']
-        next_order = (max_order or 0) + 1  # Если max_order None (разделов нет), то начать с 1
+            lesson_obj = get_object_or_404(lesson, id=lesson_id)
 
-        section.objects.create(
-            lesson=lesson_obj,
-            name=name,
-            topic=topic,
-            order=next_order
-        )
-        return redirect('lesson_page', lesson_id=lesson_id)
+            max_order = lesson_obj.sections.aggregate(Max('order'))['order__max']
+            next_order = (max_order or 0) + 1  # Если max_order None (разделов нет), то начать с 1
 
-def section_view(request, section_id):
-    selected_section = get_object_or_404(section, id=section_id)
-    lesson_obj = get_object_or_404(lesson, id=selected_section.lesson.id)
-    course_obj = get_object_or_404(course, id=lesson_obj.course.id)
+            section_obj = section.objects.create(
+                lesson=lesson_obj,
+                name=section_name,
+                order=next_order
+            )
+            return JsonResponse({
+                'success': True,
+                'section_id': section_obj.id,
+                'name': section_obj.name
+            })
+        except Exception as e:
+            print(e)
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
 
-    if not (request.user == course_obj.user):
-        return HttpResponseForbidden("You do not have access to this section.")
+def update_section(request, section_id):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            new_name = data.get('name')
 
-    section_list = section.objects.filter(lesson=lesson_obj).order_by('order')
-    classrooms = Classroom.objects.filter(Q(teachers=request.user) | Q(students=request.user)).distinct()
-    tasks = BaseTask.objects.filter(section=selected_section).order_by('order')
+            if not new_name:
+                return JsonResponse({'error': 'Название раздела не может быть пустым.'}, status=400)
 
-    return render(request, 'builder/section_page.html', {
-        'tasks': tasks,
-        'lesson': lesson_obj,
-        'section_list': section_list,
-        'selected_section': selected_section,
-        'classrooms': classrooms,
-    })
+            section_obj = get_object_or_404(section, id=section_id)
+            section_obj.name = new_name
+            section_obj.save()
+
+            return JsonResponse({'success': True, 'new_name': new_name})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Метод не поддерживается.'}, status=405)
 
 def delete_section_view(request, section_id):
     section_obj = get_object_or_404(section, id=section_id)
@@ -164,6 +176,71 @@ def delete_section_view(request, section_id):
 
     return redirect('lesson_page', lesson_id=lesson_id)
 
+def addContextElement(request, lesson_id):
+    if request.method != "POST":
+        return JsonResponse({"error": "Доступ запрещен."}, status=405)
+
+    # Получаем урок
+    lesson_instance = get_object_or_404(lesson, id=lesson_id)
+
+    # Проверяем, является ли пользователь создателем курса
+    if request.user != lesson_instance.course.user:
+        return JsonResponse({"error": "Доступ запрещен."}, status=403)
+
+    # Получаем данные из тела запроса
+    try:
+        data = json.loads(request.body)
+        task_id = data.get("task_id")
+        header = data.get("header", "")
+        content = data.get("content", "")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Данные переданы неверно."}, status=400)
+
+    if not content:
+        return JsonResponse({"error": "Текст не найден."}, status=400)
+
+    # Загружаем существующий контекст
+    context = lesson_instance.context or {}
+
+    # Если task_id отсутствует, используем текстовый ключ
+    if not task_id:
+        task_id = f"text_{uuid.uuid4().hex[:8]}"
+
+    # Проверяем, существует ли уже такой task_id
+    if task_id in context:
+        return JsonResponse({"error": "Вы уже добавили это задание в контекст."}, status=400)
+
+    # Добавляем новый элемент
+    context[task_id] = {"header": header, "content": content}
+    lesson_instance.context = context
+    lesson_instance.save()
+
+    return JsonResponse({"message": "Задание успешно добавлено", "task_id": task_id, "header": header, "content": content}, status=201)
+
+def removeTaskFromContext(request, lesson_id, task_id):
+    if request.method != "DELETE":
+        return JsonResponse({"error": "Доступ запрещен."}, status=405)
+
+    # Получаем урок
+    lesson_instance = get_object_or_404(lesson, id=lesson_id)
+
+    # Проверяем, имеет ли пользователь доступ
+    if request.user != lesson_instance.course.user:
+        return JsonResponse({"error": "Доступ запрещен."}, status=403)
+
+    # Получаем текущий контекст урока
+    context = lesson_instance.context or {}
+
+    # Проверяем, есть ли такой task_id
+    if task_id not in context:
+        return JsonResponse({"error": "Такого задания в контексте нет."}, status=404)
+
+    # Удаляем задание
+    del context[task_id]
+    lesson_instance.context = context
+    lesson_instance.save()
+
+    return JsonResponse({"message": "Задание успешно удалено.", "task_id": task_id}, status=200)
 
 
 """ 
@@ -263,7 +340,10 @@ def get_task_data(request, task_id):
         elif content_type.model_class() == LabelImages:
             data = {
                 "id": task_id,
-                "image_urls": [image.image_url for image in content_object.image_urls.all()],
+                "image_urls": [
+                    {"id": image.id, "image_url": image.image_url}
+                    for image in content_object.image_urls.all().order_by("labelimageorder__image_order")
+                ],
                 "labels": content_object.labels,
             }
         elif content_type.model_class() == EmbeddedTask:
@@ -274,7 +354,7 @@ def get_task_data(request, task_id):
             }
         else:
             return JsonResponse({"error": "Unknown task type"}, status=400)
-
+        print(data)
         return JsonResponse(data)
 
     except Exception as e:
@@ -334,7 +414,7 @@ def taskFactory(request, section_id):
             'test': Test,
             'true_false': TrueOrFalse,
             'label_images': LabelImages,
-            'embedded_task': EmbeddedTask
+            'embedded_task': EmbeddedTask,
         }
 
         # Получаем класс модели для задачи
@@ -543,6 +623,24 @@ def create_or_update_task(request, section_id):
 
     return JsonResponse({'success': False, 'error': 'Invalid method'}, status=405)
 
+
+def upload_audio(request):
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'error': 'Файл не найден'}, status=400)
+
+    # Сохраняем файл и генерируем URL
+    ext = os.path.splitext(file.name)[1]
+    filename = f"{uuid.uuid4()}{ext}"
+    with open(f"media/audio/{filename}", 'wb+') as destination:
+        for chunk in file.chunks():
+            destination.write(chunk)
+
+    audio_url = f"/media/audio/{filename}"
+    return JsonResponse({'url': audio_url})
 
 
 """ 
@@ -1256,3 +1354,21 @@ def get_stats(request):
     except Classroom.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Classroom not found'}, status=404)
 
+
+
+
+
+"""
+saveTask
+// Сохранение заданий
+// Обновление статистики
+    
+saveImages
+// Сохранение картинок
+
+saveAudio
+// Сохранение аудиофайлов
+
+
+
+"""

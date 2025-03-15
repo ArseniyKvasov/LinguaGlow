@@ -1,12 +1,74 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    <div class="form-check mb-2">
-        {% for conditions, score in task.content_object.conditions.items %}
-        <input class="form-check-input" type="checkbox" value="" id="conditional-{{ forloop.counter }}">
-        <label class="form-check-label" for="conditional-{{ forloop.counter }}">
-            {{ conditions }} <span class="text-muted">({{ score }} баллов)</span>
-        </label>
-        {% endfor %}
+
+<div class="task-item card mb-4 border-0 shadow rounded-4" id="{{ task.id }}" data-task-type="essay">
+    <!-- Заголовок -->
+    <div class="card-header d-flex align-items-center justify-content-between bg-f5f5f5">
+        <span class="task-title text-black me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-black fw-bold" style="white-space: nowrap">Essay</span>
+        </div>
+    </div>
+
+    <!-- Содержимое -->
+    <div class="card-body p-4">
+        <div class="conditions-list mb-4">
+            {% for condition, score in task.content_object.conditions.items %}
+            <div class="condition-item mb-3 p-3 rounded-3 border border-light-subtle">
+                <div class="d-flex align-items-center justify-content-between">
+                    <label class="mb-0">
+                        <span class="d-block fw-semibold">{{ condition }}</span>
+                        <small class="text-muted">Критерий оценки</small>
+                    </label>
+                    <div class="d-flex align-items-center ms-3">
+                        <span class="badge bg-primary-subtle text-primary border border-primary rounded-pill px-3 py-2">
+                            {{ score }} баллов
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Панель форматирования -->
+        <div class="btn-group mb-3 w-100" role="group">
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('bold')">
+                <i class="bi bi-type-bold"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('italic')">
+                <i class="bi bi-type-italic"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="formatText('underline')">
+                <i class="bi bi-type-underline"></i>
+            </button>
+        </div>
+
+        <!-- Поле для эссе -->
+        <div id="essay-editor-{{ task.id }}"
+             class="essay-editor border rounded-3 p-3 mb-3"
+             contenteditable="true"
+             oninput="updateWordCount('{{ task.id }}')"
+             style="min-height: 200px; overflow-y: auto;">
+        </div>
+
+        <!-- Скрытый textarea для отправки данных -->
+        <textarea id="essay-content-{{ task.id }}"
+                  name="essay-content"
+                  class="d-none"></textarea>
+
+        <!-- Счетчик слов -->
+        <div class="d-flex justify-content-end text-muted">
+            <span id="word-count-{{ task.id }}">0 слов</span>
+        </div>
     </div>
 </div>

@@ -1,0 +1,190 @@
+{% load static %}
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="en" translate="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{% static 'updated_functions/updated_styles.css' %}">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm rounded-bottom sticky-top" style="z-index: 10;">
+        <div class="container-fluid d-flex align-items-center">
+            <a class="navbar-brand text-primary fw-bold" href="#">LinguaGlow</a>
+            <button
+                class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav"
+                aria-controls="navbarNav"
+                aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <div class="ms-auto d-flex align-items-center">
+                    <a class="nav-link me-3" href="{% url 'home' %}">Кабинет</a>
+                    <a class="nav-link" href="#">Помощь</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="row m-2 m-lg-4">
+        <!-- Основной контент страницы -->
+        <div id="main-container" class="col-12 col-md-9" data-lesson-id="{{ lesson.id }}" style="z-index: 1;">
+            {% for task in tasks %}
+                <div class="task-item card border-light mb-4 rounded" id="{{ task.id }}" data-section-id="{{ task.section.id }}" data-task-type="{{ task.content_type.model }}"></div>
+            {% endfor %}
+        </div>
+
+        <!-- Контейнер с секциями и контекстом -->
+        <div id="secondary-container" class="col-12 col-md-3 d-none d-md-block" style="z-index: 2; position: sticky; top: 65px; max-height: 60vh;">
+            <!-- Разделы урока на компьютере -->
+            <div class="overflow-y-auto border-light" style="max-height: 40vh;">
+                <div class="card h-100">
+                    <ul class="list-group list-group-flush" id="section-list">
+                        {% for section in section_list %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center text-primary section-link"
+                                data-section-id="{{ section.id }}">
+                                <span class="section-name">{{ section.name }}</span>
+                                <div class="section-action-buttons d-flex align-items-center ms-2">
+                                    <!-- Иконка редактирования -->
+                                    <i class="bi bi-pencil-fill text-secondary edit-section-icon"
+                                       data-section-id="{{ section.id }}"
+                                       title="Редактировать название"></i>
+                                    <!-- Форма удаления -->
+                                    <form method="POST" action="{% url 'delete_section' section.id %}" onsubmit="return confirm('Вы уверены?');">
+                                        {% csrf_token %}
+                                        <button class="btn btn-link" title="Удалить">
+                                            <i class="bi bi-trash3-fill text-secondary"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Кнопка "Добавить раздел" -->
+            <div class="mb-3 mt-1">
+                <a href="#"
+                   class="fw-bold fs-6 text-center w-100 text-decoration-none add-section-link"
+                   style="display: block;"
+                   data-lesson-id="{{ lesson.id }}">Добавить раздел</a>
+            </div>
+        </div>
+
+        <div class="position-fixed bottom-0 end-0 m-3 d-inline-flex align-items-center justify-content-end border-1 rounded shadow w-auto bg-white" style="z-index: 1039;">
+            <!-- Кнопка открытия контекста -->
+            <button class="btn border-0"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#contextOffcanvas"
+                    style="width: 60px; height: 60px; font-size: 1.5rem;">
+                <i class="bi bi-bookmark-fill text-primary"></i>
+            </button>
+            <!-- Модальное окно для добавления урока в класс -->
+            <button id="addToClassButton" type="button" class="btn border-0" data-bs-toggle="modal" data-bs-target="#classroomModal" style="width: 60px; height: 60px; font-size: 1.5rem;">
+                <i class="bi bi-plus"></i>
+            </button>
+        </div>
+
+        <!-- Контекстное окно -->
+        <div class="offcanvas offcanvas-bottom ms-auto rounded-top" tabindex="-1" id="contextOffcanvas" style="max-width: 768px; max-height: 70vh; min-height: 50vh;">
+            <div class="offcanvas-header">
+                <h5 class="offcanvas-title fw-bold fs-5">Контекст</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+            </div>
+            <div class="offcanvas-body p-2 d-flex flex-column h-100">
+                    <div id="context-window" class="overflow-y-auto">
+                        <p id="permanent-context-text" class="fs-6 text-center mt-3">Добавьте задания в контекст, чтобы генерировать план урока на их основе.</p>
+                    </div>
+                    <div class="d-flex justify-content-center align-items-center mt-auto">
+                        <button id="addTextContentButton" class="btn border-0 text-primary mb-2 mt-3 fw-bold">Добавить заметку</button>
+                    </div>
+                    <div id="noteContainer" class="w-100 mt-1"></div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для выбора класса -->
+        <div class="modal fade" id="classroomModal" tabindex="-1" aria-labelledby="classroomModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="classroomModalLabel">Добавление урока</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <h4 class="text-primary mb-3">Выберите класс</h4>
+                        <form id="chooseClassroomForm" method="POST" action="{% url 'choose_classroom' lesson.id %}">
+                            {% csrf_token %}
+                            <ul class="classroom-list list-unstyled">
+                                {% for classroom in classrooms %}
+                                    <li class="mb-3">
+                                        <div class="card shadow-sm">
+                                            <label>
+                                                <div class="card-body d-flex align-items-center mb-0">
+                                                    <input type="radio" name="classroom_id" value="{{ classroom.id }}" class="me-3">
+                                                    <p class="card-text text-muted mb-0">
+                                                        <i class="bi bi-book me-2"></i> {{ classroom.name }}
+                                                    </p>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-check-circle me-2"></i> Выбрать
+                            </button>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <h4 class="text-primary mb-3">Создайте новый класс</h4>
+                        <form id="createClassroomForm" method="POST" action="{% url 'create_classroom' lesson.id %}">
+                            {% csrf_token %}
+                            <div class="create-classroom-form">
+                                <div class="mb-3">
+                                    <input type="text" name="name" id="id_name" class="form-control" placeholder="Введите название класса" required>
+                                </div>
+
+                                <input type="hidden" name="teacher" value="{{ request|get_current_user }}">
+
+                                <div class="d-grid">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-2"></i> Создать
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary d-flex align-items-center" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle me-2"></i> Закрыть
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{% static 'updated_functions/common.js' %}"></script>
+    <script src="{% static 'updated_functions/generative.js' %}"></script>
+    <script src="{% static 'updated_functions/teacher.js' %}"></script>
+
+</body>
+</html>

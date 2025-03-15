@@ -1,4 +1,5 @@
 import json
+import base64
 import re
 import random
 
@@ -32,6 +33,35 @@ def to_json(value):
     """
     return json.dumps(value)
 
+def encode_base64(value):
+    return base64.b64encode(value.encode()).decode()
+
+@register.filter
+def dict_to_json(value):
+    """
+    Преобразует Python-словарь в JSON-строку с зашифрованными словами.
+    """
+    for item in value:
+        item['word'] = encode_base64(item['word'])
+    return json.dumps(value)
+
+@register.filter
+def test_to_json(value):
+    """
+    Преобразует Python-словарь в JSON-строку с зашифрованными словами.
+    """
+    for elem in value:
+        for item in elem['answers']:
+            item['answer'] = encode_base64(item['answer'])
+    return json.dumps(value)
+
+@register.filter
+def base64_encode(text):
+    byte_data = text.encode('utf-8')
+    # Кодируем байты в Base64
+    base64_encoded = base64.b64encode(byte_data).decode('utf-8')
+    return base64_encoded
+
 @register.filter
 def shuffle_letters(value):
     if not value:
@@ -40,22 +70,35 @@ def shuffle_letters(value):
     random.shuffle(letters)
     return ''.join(letters)
 
+@register.filter
+def split(value, separator):
+    return value.split(separator)
+
 @register.filter(name='split_blanks')
 def split_blanks(value):
     """
     Разделяет текст на части с выделением пропусков в квадратных скобках
-    Возвращает список кортежей: ('input', 'correct_answer') или ('text', 'content')
     """
     parts = []
-    last_end = 0
-    for match in re.finditer(r'\[(.*?)\]', value):
-        start, end = match.start(), match.end()
-        if last_end < start:
-            parts.append(('text', value[last_end:start]))
-        parts.append(('input', match.group(1)))
-        last_end = end
-    if last_end < len(value):
-        parts.append(('text', value[last_end:]))
+    current_part = ""
+    in_brackets = False
+    for char in value:
+        if char == '[':
+            # Начало пропуска
+            if current_part:
+                parts.append(('text', current_part))
+            current_part = ""
+            in_brackets = True
+        elif char == ']':
+            # Конец пропуска
+            if in_brackets:
+                parts.append(('input', base64_encode(current_part)))
+            current_part = ""
+            in_brackets = False
+        else:
+            current_part += char
+    if current_part:
+        parts.append(('text', current_part))
     return parts
 
 

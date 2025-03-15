@@ -1,3 +1,5 @@
+<!--
+
 {% load static %}
 {% load custom_tags %}
 {% load custom_filters %}
@@ -87,13 +89,11 @@
 </script>
 
 <div class="container my-4">
-    <!-- Заголовок урока -->
     <div class="alert alert-primary text-center" role="alert">
         <h1>{{ lesson.name }}</h1>
         <p class="lead">{{ lesson.description }}</p>
     </div>
 
-    <!-- Список секций -->
     <h3 class="text-primary mb-3">📚 Секции</h3>
     <div class="row">
         {% for section in section_list %}
@@ -115,7 +115,6 @@
         {% endfor %}
     </div>
 
-    <!-- Кнопка добавления секции -->
     <div class="text-center mt-4 d-flex justify-content-center">
         <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#addSectionModal">
             <i class="bi bi-plus-lg"></i> Добавить секцию
@@ -126,7 +125,6 @@
     </div>
 </div>
 
-<!-- Модальное окно для добавления секции -->
 <div class="modal fade" id="addSectionModal" tabindex="-1" aria-labelledby="addSectionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -155,19 +153,15 @@
     </div>
 </div>
 
-<!-- Модальное окно для выбора и создания класса -->
 <div class="modal fade" id="classroomModal" tabindex="-1" aria-labelledby="classroomModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <!-- Заголовок модального окна -->
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title" id="classroomModalLabel">Выберите или создайте класс для урока "{{ lesson.name }}"</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Закрыть"></button>
             </div>
 
-            <!-- Тело модального окна -->
             <div class="modal-body">
-                <!-- Список классов -->
                 <h4 class="text-primary mb-3">Выберите класс:</h4>
                 <form id="chooseClassroomForm" method="POST" action="{% url 'choose_classroom' lesson.id %}">
                     {% csrf_token %}
@@ -194,15 +188,12 @@
                     </button>
                 </form>
 
-                <!-- Разделитель -->
                 <hr class="my-4">
 
-                <!-- Форма создания нового класса -->
                 <h4 class="text-primary mb-3">Создать новый класс:</h4>
                 <form id="createClassroomForm" method="POST" action="{% url 'create_classroom' lesson.id %}">
                     {% csrf_token %}
                     <div class="create-classroom-form">
-                        <!-- Поле "Название класса" -->
                         <div class="mb-3">
                             <label for="id_name" class="form-label">
                                 <i class="bi bi-pencil-square me-2"></i> Название класса:
@@ -210,10 +201,8 @@
                             <input type="text" name="name" id="id_name" class="form-control" placeholder="Введите название класса" required>
                         </div>
 
-                        <!-- Скрытое поле для учителя -->
                         <input type="hidden" name="teacher" value="{{ request|get_current_user }}">
 
-                        <!-- Кнопка отправки формы -->
                         <div class="d-grid">
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-plus-circle me-2"></i> Создать класс
@@ -223,7 +212,6 @@
                 </form>
             </div>
 
-            <!-- Футер модального окна -->
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle me-2"></i> Закрыть
@@ -287,3 +275,12 @@
 </script>
 </body>
 </html>
+-->
+
+{% extends 'builder/updated_templates/base.html' %}
+
+{% block title %} Задания {% endblock %}
+
+{% block content %}
+hi
+{% endblock %}

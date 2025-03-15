@@ -8,12 +8,13 @@ urlpatterns = [
     path('course/<uuid:course_id>/lessons/', views.lesson_list_view, name='lesson_list'),
     path('course/<uuid:course_id>/lessons/add/', views.add_lesson, name='add_lesson'),
     path('lesson/<uuid:lesson_id>/', views.lesson_page_view, name='lesson_page'),
-    path('section/<uuid:section_id>/', views.section_view, name='section'),
     path('lesson/<uuid:lesson_id>/delete/', views.delete_lesson, name='delete_lesson'),
     path('lesson/<uuid:lesson_id>/add_section/', views.add_section, name='add_section'),
+    path('section/<uuid:section_id>/update', views.update_section, name='update_section'),
     path('section/<uuid:section_id>/delete/', views.delete_section_view, name='delete_section'),
     path('section/<uuid:section_id>/add_task/', views.taskFactory, name='add_task'),
     path('api/tasks/<uuid:task_id>/', views.get_task_data, name='get_task_data'),
+    path('api/upload/audio/', views.upload_audio, name='upload_audio'),
     path('api/tasks/<uuid:task_id>/delete/', views.delete_task, name='delete_task'),
 
     path('classroom/<uuid:classroom_id>/', views.classroom_view, name='classroom_view'),
@@ -31,4 +32,7 @@ urlpatterns = [
     path('get_stats/', views.get_stats, name='get_stats'),
 
     path('', views.index, name='index'),
+
+    path('add-context-element/<uuid:lesson_id>/', views.addContextElement, name='add_context_element'),
+    path('remove-context-element/<uuid:lesson_id>/<str:task_id>/', views.removeTaskFromContext, name='remove_task_from_context'),
 ]

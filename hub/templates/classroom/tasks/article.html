@@ -1,15 +1,31 @@
-
 {% load static %}
+<div class="task-item card border-0 mb-4 rounded" id="{{ task.id }}" data-task-type="article">
+    <!-- Заголовок -->
+    <div class="card-header d-flex align-items-center justify-content-between bg-success">
+        <span class="task-title text-white me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
 
-<div class="task-item" id="task-{{ task.id }}" data-task-type="article">
-    <div class="card mb-3 border-0 shadow-lg rounded-3">
-        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
-            <button class="add-context-btn my-2 btn btn-primary">+</button>
-            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
-            <span class="badge bg-primary text-white fs-6">Article Task</span>
+            <span class="text-white fw-bold">Article</span>
         </div>
-        <div class="card-body">
-            <div class="article-content mb-4 text-part">{{ task.content_object.content|safe }}</div>
+    </div>
+
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom" style="border: 1px solid #F5F5F5; border-top: 0;">
+        <div class="article-content text-part">
+            {{ task.content_object.content|safe }}
         </div>
     </div>
 </div>

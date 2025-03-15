@@ -1,5 +1,27 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.caption }}</h3>
-    <img src="{{ task.content_object.image_url }}" alt="{{ task.content_object.caption }}" class="img-fluid">
+<div class="task-item card border-0 mb-4 rounded" id="{{ task.id }}" data-task-type="image">
+    <!-- Заголовок -->
+    <div class="card-header d-flex align-items-center justify-content-end bg-primary">
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-white fw-bold">Image</span>
+        </div>
+    </div>
+
+    <div class="card-body rounded-bottom" style="border: 1px solid #F5F5F5; border-top: 0;">
+        <img src="{{ task.content_object.image_url }}" alt="{{ task.content_object.caption }}" class="img-fluid">
+        {% if task.content_object.caption %}
+        <div class="caption text-center">{{ task.content_object.caption }}</div>
+        {% endif %}
+    </div>
 </div>

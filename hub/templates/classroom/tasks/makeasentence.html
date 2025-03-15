@@ -1,9 +1,76 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    {% for sentence in task.content_object.sentences %}
-    <div class="sentence-block">
-        <p>{{ sentence.shuffled }} <strong>({{ sentence.correct }})</strong></p>
+{% load custom_filters %}
+
+<div class="task-item card mb-4 rounded" id="{{ task.id }}" data-task-type="make-sentence">
+    <!-- Заголовок -->
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <span class="task-title text-dark me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Сбросить">
+                    <i class="bi bi-arrow-clockwise text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-dark fw-bold">Sentence</span>
+        </div>
     </div>
-    {% endfor %}
+
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom">
+        {% for sentence in task.content_object.sentences %}
+        <div class="sentence-container mb-4">
+            <!-- Иконки статуса -->
+            <div class="d-flex align-items-center mb-2 justify-content-center">
+                <i class="bi bi-x-circle text-success fs-4 me-2"></i>
+                <i class="bi bi-x-circle text-success fs-4 me-2"></i>
+                <i class="bi bi-x-circle text-success fs-4"></i>
+            </div>
+
+            <!-- Поля для слов -->
+            <div class="d-flex flex-wrap gap-2 mb-2 sentence-fields justify-content-center">
+                {% for word in sentence.correct|split:" " %}
+                <div class="border border-primary border-2 rounded text-center fw-bold fs-5 empty-slot"
+                     style="min-width: 100px; height: 40px; line-height: 40px;"
+                     data-word-position="{{ forloop.counter0 }}">
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Кнопки со словами -->
+            <div class="d-flex flex-wrap gap-2 word-buttons justify-content-center">
+                {% for word in sentence.shuffled|split:" " %}
+                <button class="btn btn-outline-dark fw-bold word-button"
+                        style="min-width: 100px; height: 40px;"
+                        data-word="{{ word }}">
+                    {{ word }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Футер с баллами -->
+    <div class="card-footer bg-white text-center py-3 rounded-bottom d-none">
+        <div class="fs-5 fw-bold text-danger">
+            <span class="score-value">0</span>%
+        </div>
+    </div>
+</div>
+
+<!-- Скрытые данные -->
+<div class="correct-sentences d-none"
+     data-blanks-num="{{ task.content_object.sentences|length }}">
 </div>

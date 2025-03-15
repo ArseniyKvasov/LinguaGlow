@@ -48,16 +48,16 @@ class lesson(models.Model):
     extra_topics = models.TextField(blank=True, null=True)  # Дополнительные темы
     created_at = models.DateTimeField(auto_now_add=True)  # Дата создания урока
     updated_at = models.DateTimeField(auto_now=True)  # Дата последнего обновления
+    context = models.JSONField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.name} (Course: {self.course.name})"
 
 class section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    lesson = models.ForeignKey(lesson, on_delete=models.CASCADE, related_name="sections")  # Привязка секции к уроку
-    name = models.CharField(max_length=255)  # Название секции
-    topic = models.CharField(max_length=255)  # Тема секции
-    order = models.PositiveIntegerField()  # Порядковый номер секции внутри урока
+    lesson = models.ForeignKey(lesson, on_delete=models.CASCADE, related_name="sections")
+    name = models.CharField(max_length=255)
+    order = models.PositiveIntegerField()
 
     class Meta:
         ordering = ["order"]  # Автоматическая сортировка секций по их порядковому номеру

@@ -1,23 +1,39 @@
 {% load static %}
-<div class="task-item card mb-4 border-0 shadow-sm" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center">
-        <button class="add-context-btn my-2 btn btn-primary">+</button>
-        <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
+<div class="task-item card border-0 mb-4 rounded" id="{{ task.id }}" data-task-type="wordlist">
+    <!-- Заголовок -->
+    <div class="card-header d-flex align-items-center justify-content-between bg-primary">
+        <span class="task-title text-white me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-white fw-bold">Words</span>
+        </div>
     </div>
 
-    <div class="card-body bg-light bg-opacity-25">
-        <div class="row g-3">
+    <div class="card-body rounded-bottom " style="border: 1px solid #F5F5F5; border-top: 0;">
+        <div class="words-list">
             {% for word, translation in task.content_object.words.items %}
-            <div class="col-12 col-md-6">
-                <div class="card border-success border-opacity-25 h-100">
-                    <div class="card-body py-3">
-                        <div class="d-flex justify-content-between align-items-center my-auto">
-                            <span class="fw-bold text-success text-start">{{ word }}</span>
-                            <i class="bi bi-arrow-right-short fs-4 text-muted px-2"></i>
-                            <span class="fw-bold text-success text-end">{{ translation }}</span>
-                        </div>
-                    </div>
+            <div class="word-item mb-2 d-flex align-items-center position-relative">
+                <!-- Слово и перевод -->
+                <div class="me-3">
+                    <span class="fw-bold me-1">{{ word }}</span>-<span class="ms-1">{{ translation }}</span>
                 </div>
+
+                <!-- Кружок для отметки слова -->
+                <button class="btn-mark-word btn btn-link p-0 position-absolute end-0 opacity-0" style="width: 10px; height: 10px; border-radius: 50%; background-color: orange; transition: opacity 0.2s;">
+                </button>
             </div>
             {% endfor %}
         </div>

@@ -1,13 +1,33 @@
 {% load static %}
-<div class="task-item vh-100 mb-3" id="task-{{ task.id }}" data-task-type="embeddedtask">
-    <div class="card h-100 border-0 shadow-lg rounded">
-        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
+
+<!-- Основной элемент задачи -->
+<div class="task-item mb-3" id="{{ task.id }}" data-task-type="embeddedtask">
+    <div class="card border-0 shadow-lg rounded">
+        <div class="card-header bg-light d-flex align-items-center justify-content-between">
             <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
-            <span class="badge bg-primary text-white fs-6">Interaction Task</span>
+            <span class="badge bg-primary text-white fs-6">Interaction</span>
         </div>
-        <div class="card-body p-0"> <!-- p-0 убирает внутренние отступы -->
-            <div class="embed-responsive embed-responsive-16by9 h-100 w-100">
-                {{ task.content_object.embed_code|safe }}
+
+        <div class="card-body p-4">
+            <!-- Контейнер для кнопки и iframe -->
+            <div class="embed-wrapper">
+                <!-- Кнопка запуска -->
+                <button class="btn btn-primary btn-lg w-100 mb-3 d-flex justify-content-between align-items-center"
+                        onclick="toggleEmbed(this, '{{ task.content_object.embed_code|escapejs }}')">
+                    <span>Перейти к доске</span>
+                    <i class="bi bi-arrow-right-circle-fill fs-4"></i>
+                </button>
+
+                <!-- Контейнер для iframe (изначально скрыт) -->
+                <div class="embed-container embed-responsive embed-responsive-16by9 d-none">
+                    <iframe class="embed-responsive-item"
+                            style="border: none; height: 400px;"></iframe>
+                    <!-- Кнопка выхода -->
+                    <button class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 z-3"
+                            onclick="closeEmbed(this)">
+                        <i class="bi bi-x-circle"></i> Выйти из доски
+                    </button>
+                </div>
             </div>
         </div>
     </div>

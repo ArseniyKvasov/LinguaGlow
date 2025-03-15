@@ -457,7 +457,7 @@
             <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="labelimages"><i class="bi bi-tag"></i> Подписать картинку</button>
             <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="embeddedtask"><i class="bi bi-tag"></i> Интеграции</button>
             <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-search"></i> Филворд</button>
-            <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-volume-up"></i> Аудио</button>
+            <button type="button" class="btn btn-secondary mr-2 mb-2" data-activity-type="audio"><i class="bi bi-volume-up"></i> Аудио</button>
             <button type="button" class="btn btn-secondary mr-2 mb-2" disabled><i class="bi bi-chat-dots"></i> Диалог</button>
         </div>
         <div class="card-footer">
@@ -478,7 +478,7 @@
     </div>
 </div>
 
-<div id="sectionId" style="display: none;">{{ selected_section.id }}</div>
+<div id="sectionId" style="display: none;" value="{{ selected_section.id }}">{{ selected_section.id }}</div>
 
 <div id="wordListFormContainer" style="display: none;" class="centeredElement">
     <div class="mb-3">
@@ -804,6 +804,22 @@
         <button type="button" id="saveInteractionButton" class="btn btn-success">Сохранить</button>
     </div>
 </div>
+
+<div id="audioFormContainer" style="display: none;" class="centeredElement">
+    <div class="mb-3">
+        <label for="audioFileInput" class="form-label">Выберите аудиофайл</label>
+        <input type="file" id="audioFileInput" class="form-control" accept="audio/*">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+        <label for="audioScriptInput" class="form-label mt-3">Введите скрипт</label>
+        <textarea id="audioScriptInput" class="form-control" rows="3" placeholder="Введите текст скрипта..."></textarea>
+
+        <div class="mt-3">
+            <button type="button" id="saveAudioButton" class="btn btn-success">Сохранить</button>
+        </div>
+    </div>
+</div>
+
 
 <script src="{% static 'classroom/display.js' %}"></script>
 <script src="{% static 'builder/main.js' %}"></script>

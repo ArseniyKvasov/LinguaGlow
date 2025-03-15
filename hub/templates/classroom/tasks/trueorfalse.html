@@ -1,18 +1,75 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    <div class="questions-list">
-        {% if task.content_object.statements %}
-        <ul class="list-group">
+{% load custom_filters %}
+
+<div class="task-item card mb-4 rounded" id="{{ task.id }}" data-task-type="statements">
+    <!-- Заголовок -->
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <span class="task-title text-dark me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2"
+                 style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Сбросить">
+                    <i class="bi bi-arrow-clockwise text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-dark fw-bold">Statements</span>
+        </div>
+    </div>
+
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom">
+        <div class="statements-list">
             {% for statement in task.content_object.statements %}
-            <li class="list-group-item">
-                <strong>{{ statement.question }}</strong>
-                <p class="mt-2">{{ statement.trueAnswer|yesno:"Правда,Ложь" }}</p>
-            </li>
+            <div class="statement-item card mb-3">
+                <div class="card-body">
+                    <!-- Вопрос -->
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="bi bi-question-circle text-primary fs-4 me-3"></i>
+                        <span class="fw-bold">{{ statement.question }}</span>
+                    </div>
+
+                    <!-- Варианты ответов -->
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="statement_{{ forloop.counter }}"
+                               id="true_{{ forloop.counter }}" value="true">
+                        <label class="form-check-label" for="true_{{ forloop.counter }}">
+                            Верно
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="radio" name="statement_{{ forloop.counter }}"
+                               id="false_{{ forloop.counter }}" value="false">
+                        <label class="form-check-label" for="false_{{ forloop.counter }}">
+                            Неверно
+                        </label>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </ul>
-        {% else %}
-        <p>Вопросы не заданы.</p>
-        {% endif %}
+
+            <!-- Кнопка проверки -->
+            <button type="button" class="btn btn-primary check-statements-btn w-100 mt-4" style="display: none;">
+                Проверить
+            </button>
+        </div>
+    </div>
+
+    <!-- Футер с баллами -->
+    <div class="card-footer bg-white text-center py-3 rounded-bottom d-none">
+        <div class="fs-5 fw-bold text-danger">
+            <span class="score-value">0</span>%
+        </div>
     </div>
 </div>

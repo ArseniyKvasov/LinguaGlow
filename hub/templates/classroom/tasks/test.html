@@ -1,43 +1,71 @@
 {% load static %}
 {% load custom_filters %}
 
-<div class="task-item" id="task-{{ task.id }}" data-task-type="test">
-    <div class="card mb-3 border-0 shadow-lg rounded-3">
-        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
-            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
-            <span class="badge bg-primary text-white fs-6">Test Task</span>
+<div class="task-item card mb-4 rounded" id="{{ task.id }}" data-task-type="test">
+    <!-- Заголовок -->
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <span class="task-title text-dark me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Сбросить">
+                    <i class="bi bi-arrow-clockwise text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-dark fw-bold">Test</span>
         </div>
-        <div class="card-body">
-            <div class="test-content">
-                {% if task.content_object.questions %}
-                <form class="test-form" data-task-id="{{ task.id }}">
-                    {% for question in task.content_object.questions %}
-                    <div class="question-item mb-4" data-question-id="{{ forloop.counter0 }}">
-                        <h5 class="fw-bold mb-3">{{ question.question }}</h5>
-                        <div class="answers-list mx-4">
-                            {% for answer in question.answers %}
-                            <div class="form-check answer-item {% if answer.correct %}correct-answer{% endif %}">
-                                <input class="form-check-input" type="radio"
-                                       name="question-{{ forloop.parentloop.counter0 }}"
-                                       id="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}"
-                                       value="{{ forloop.counter0 }}"
-                                       data-question-id="{{ forloop.parentloop.counter0 }}"
-                                       data-answer-id="{{ forloop.counter0 }}">
-                                <label class="form-check-label"
-                                       for="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}">
-                                    {{ answer.answer }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
+    </div>
+
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom">
+        {% if task.content_object.questions %}
+        <form class="test-form" data-task-id="{{ task.id }}">
+            {% for question in task.content_object.questions %}
+            <div class="question-item mb-4 p-3 rounded border border-light" data-question-id="{{ forloop.counter0 }}">
+                <h5 class="fw-bold mb-3">{{ question.question }}</h5>
+                <div class="answers-list">
+                    {% for answer in question.answers %}
+                    <div class="form-check answer-item mb-2">
+                        <input class="form-check-input" type="radio"
+                               name="question-{{ forloop.parentloop.counter0 }}"
+                               id="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}"
+                               value="{{ forloop.counter0 }}"
+                               data-question-id="{{ forloop.parentloop.counter0 }}"
+                               data-answer-id="{{ forloop.counter0 }}"
+                               data-correct="{{ answer.correct|yesno:'true,false'|base64_encode }}">
+                        <label class="form-check-label fs-6"
+                               for="answer-{{ task.id }}-{{ forloop.parentloop.counter0 }}-{{ forloop.counter0 }}">
+                            {{ answer.answer }}
+                        </label>
                     </div>
                     {% endfor %}
-                    <button type="button" class="btn btn-primary check-test-btn ms-auto mt-3">Проверить тест</button>
-                </form>
-                {% else %}
-                <p>Вопросы не заданы.</p>
-                {% endif %}
+                </div>
             </div>
+            {% endfor %}
+
+            <!-- Кнопка проверки -->
+            <button type="button" class="btn btn-primary check-test-btn w-100 mt-4" style="display: none;">
+                Проверить
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Футер с баллами -->
+    <div class="card-footer bg-white text-center py-3 rounded-bottom d-none">
+        <div class="fs-5 fw-bold text-danger">
+            <span class="score-value">0</span>%
         </div>
     </div>
 </div>

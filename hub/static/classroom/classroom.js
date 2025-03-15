@@ -47,6 +47,7 @@ async function saveUserAnswer(taskId, classroomId, payloads, request_type=null) 
     if (studentSelector) {
         selectedUserId = studentSelector.value;
     }
+    console.log(taskId, classroomId, payloads, request_type, selectedUserId)
 
     const data = {
         task_id: taskId,
@@ -525,4 +526,36 @@ if (anticopyingSelect) {
             console.log("Копирование разрешено");
         }
     });
+}
+
+
+function toggleEmbed(button, embedCode) {
+    const wrapper = button.closest('.embed-wrapper');
+    const iframeContainer = wrapper.querySelector('.embed-container');
+    const iframe = iframeContainer.querySelector('iframe');
+
+    // Показываем контейнер и скрываем кнопку
+    iframeContainer.classList.remove('d-none');
+    button.classList.add('d-none');
+
+    // Извлекаем URL из iframe-кода
+    const srcMatch = embedCode.match(/src="([^"]+)"/);
+    if (srcMatch && srcMatch[1]) {
+        iframe.src = srcMatch[1];
+        iframe.classList.add('vh-100', 'w-100');
+    }
+}
+
+function closeEmbed(button) {
+    const iframeContainer = button.closest('.embed-container');
+    const iframe = iframeContainer.querySelector('iframe');
+    const wrapper = iframeContainer.closest('.embed-wrapper');
+    const launchButton = wrapper.querySelector('button.btn-primary');
+
+    // Очищаем и скрываем iframe
+    iframe.src = '';
+    iframeContainer.classList.add('d-none');
+
+    // Показываем кнопку запуска
+    launchButton.classList.remove('d-none');
 }

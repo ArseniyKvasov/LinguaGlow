@@ -128,7 +128,7 @@ const activityHandlers = {
 };
 
 function addDataToContext(contextTextarea, button) {
-    const container = button.closest('å.task-item');
+    const container = button.closest('.task-item');
     const taskId = container.id.replace('task-', '');
     const taskType = container.dataset.taskType;
 

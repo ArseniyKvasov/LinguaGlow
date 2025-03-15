@@ -1,14 +1,111 @@
 {% load static %}
-<div class="task-item" id="task-{{ task.id }}" data-task-type="{{ task.content_type.model }}">
-    <h3>{{ task.content_object.title }}</h3>
-    {% for column_title, words in task.content_object.columns.items %}
-    <div class="column">
-        <h4>{{ column_title }}</h4>
-        <ul>
-            {% for word in words %}
-            <li>{{ word }}</li>
-            {% endfor %}
-        </ul>
+{% load custom_filters %}
+
+<div class="task-item card mb-4 rounded" id="{{ task.id }}" data-task-type="sort-columns">
+    <!-- Заголовок -->
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <span class="task-title text-dark me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2"
+                 style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Сбросить">
+                    <i class="bi bi-arrow-clockwise text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
+            </div>
+            {% endif %}
+
+            <span class="text-dark fw-bold">Sort Columns</span>
+        </div>
     </div>
-    {% endfor %}
+
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom position-relative">
+        <!-- Список слов (sticky) -->
+        <div class="sticky-top bg-white py-3 border-bottom">
+            <div class="d-flex flex-wrap gap-2 mb-3 word-bank">
+                {% for words in task.content_object.columns.values %}
+                    {% for word in words %}
+                    <span class="badge bg-primary draggable-word fs-5 px-3 py-2"
+                          draggable="true"
+                          data-word="{{ word }}">
+                        {{ word }}
+                    </span>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Контейнер с колонками -->
+        <div class="row g-3 mt-3 sortable-columns d-flex justify-content-center">
+            {% for column_title, words in task.content_object.columns.items %}
+            <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                <div class="card h-100 column-dropzone"
+                     data-column="{{ column_title }}">
+                    <div class="card-header bg-light text-center fw-bold">
+                        {{ column_title }}
+                    </div>
+                    <div class="card-body drop-area p-3">
+                        <div class="d-flex flex-column gap-2 min-vh-25">
+                            <!-- Сюда будут помещаться слова -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Футер с баллами -->
+    <div class="card-footer bg-white text-center py-3 rounded-bottom d-none">
+        <div class="fs-5 fw-bold text-danger">
+            <span class="score-value">0</span>%
+        </div>
+    </div>
 </div>
+
+<!-- Скрытые данные -->
+<div class="correct-columns d-none"
+     data-columns="{{ task.content_object.columns }}">
+</div>
+
+<!-- Необходимые стили -->
+<style>
+.draggable-word {
+    cursor: grab;
+    transition: transform 0.2s;
+}
+
+.draggable-word:active {
+    cursor: grabbing;
+    transform: scale(1.05);
+}
+
+.column-dropzone {
+    transition: box-shadow 0.3s;
+}
+
+.column-dropzone.dragover {
+    border-color: #2196F3 !important;
+    box-shadow: 0 0 0 2px #2196F3;
+}
+
+.word-bank {
+    transition: all 0.3s;
+}
+
+.drop-area {
+    min-height: 150px;
+    border: 2px dashed #6c757d;
+    border-radius: 0.375rem;
+}
+</style>

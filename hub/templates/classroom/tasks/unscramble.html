@@ -1,57 +1,74 @@
 {% load static %}
 {% load custom_filters %}
 
-<div class="task-item" id="task-{{ task.id }}" data-task-type="unscramble">
-    <div class="card mb-3 border-0 shadow-lg rounded-3">
-        <div class="card-header bg-primary bg-opacity-10 d-flex align-items-center justify-content-between">
-            <h3 class="card-title mb-0 text-primary fw-bold">{{ task.content_object.title }}</h3>
-            <span class="badge bg-primary text-white fs-6">Unscramble Task</span>
-        </div>
-        <div class="card-body">
-            {% for element in task.content_object.words %}
-            <div class="word-container mb-4">
-                <div class="d-flex align-items-center mb-2 justify-content-center">
-                    <i class="bi bi-x-circle text-success fs-4 me-2"></i>
-                    <i class="bi bi-x-circle text-success fs-4 me-2"></i>
-                    <i class="bi bi-x-circle text-success fs-4"></i>
-                </div>
-                <div class="d-flex flex-wrap gap-2 mb-2 word-fields d-flex justify-content-center" data-word="{{ element.word }}">
-                    {% for letter in element.word %}
-                    <div class="border border-primary border-2 shadow rounded text-center fw-bold fs-5 empty-slot" style="width: 40px; height: 40px; line-height: 40px;" data-expected="{{ letter }}"></div>
-                    {% endfor %}
-                </div>
-                <div class="d-flex flex-wrap gap-2 letter-buttons d-flex justify-content-center">
-                    {% for letter in element.shuffled_word %}
-                    <button class="btn btn-outline-dark fw-bold letter-button" style="width: 40px; height: 40px;" data-letter="{{ letter }}">{{ letter }}</button>
-                    {% endfor %}
-                </div>
+<div class="task-item card mb-4 rounded" id="{{ task.id }}" data-task-type="unscramble">
+    <!-- Заголовок -->
+    <div class="card-header bg-light d-flex align-items-center justify-content-between">
+        <span class="task-title text-dark me-2 fw-bold">{{ task.content_object.title }}</span>
+        <div class="d-flex justify-content-end">
+            {% if user in teachers %}
+            <div class="actions-container d-none align-items-center rounded-3 me-2" style="border: 1px solid white; background-color: rgba(255, 255, 255, 0.3);">
+                <button class="btn btn-link p-0 me-2 ms-2" title="Редактировать">
+                    <i class="bi bi-pencil text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Сбросить">
+                    <i class="bi bi-arrow-clockwise text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Закрепить">
+                    <i class="bi bi-paperclip text-dark"></i>
+                </button>
+                <button class="btn btn-link p-0 me-2" title="Удалить">
+                    <i class="bi bi-trash text-dark"></i>
+                </button>
             </div>
-            {% endfor %}
-        </div>
-        <div class="card-footer bg-white text-center py-3">
-            <div class="fs-5 fw-bold">
-                <span class="score-value" data-real-score="0">0</span> из {{ task.content_object.words|length }} баллов
-            </div>
-        </div>
+            {% endif %}
 
-        <div class="stats-container" style="display: none;">
-            <div class="scroll-wrapper d-flex justify-content-center" style="overflow-x: hidden; white-space: nowrap;">
-                <div class="stats-columns d-flex justify-content-center align-items-end w-100 position-relative"
-                     style="height: 200px; gap: 20px; border-bottom: 2px solid rgba(0, 0, 0, 0.1);">
-                    <!-- Колонки будут добавляться динамически -->
-                </div>
-            </div>
+            <span class="text-dark fw-bold">Unscramble</span>
         </div>
     </div>
 
-    {% if user in teachers %}
-    <div class="action-buttons d-flex justify-content-end mb-4 align-items-center">
-        <button class="btn btn-warning reset-button me-2">
-            <i class="bi bi-arrow-clockwise"></i>
-        </button>
-        <button class="btn btn-danger hide-button">
-            <i class="bi bi-eye-slash-fill"></i>
-        </button>
+    <!-- Тело карточки -->
+    <div class="card-body rounded-bottom">
+        {% for element in task.content_object.words %}
+        <div class="word-container mb-4">
+            <!-- Иконки статуса (правильно/неправильно) -->
+            <div class="d-flex align-items-center mb-2 justify-content-center">
+                <i class="bi bi-x-circle text-success fs-4 me-2"></i>
+                <i class="bi bi-x-circle text-success fs-4 me-2"></i>
+                <i class="bi bi-x-circle text-success fs-4"></i>
+            </div>
+
+            <!-- Поля для букв -->
+            <div class="d-flex flex-wrap gap-2 mb-2 word-fields d-flex justify-content-center" data-word="{{ element.word|base64_encode }}">
+                {% for letter in element.word %}
+                <div class="border border-primary border-2 rounded text-center fw-bold fs-5 empty-slot" style="width: 40px; height: 40px; line-height: 40px;" data-letter-id="{{ forloop.counter0 }}"></div>
+                {% endfor %}
+            </div>
+
+            <!-- Кнопки с буквами -->
+            <div class="d-flex flex-wrap gap-2 letter-buttons d-flex justify-content-center">
+                {% for letter in element.shuffled_word %}
+                <button class="btn btn-outline-dark fw-bold letter-button" style="width: 40px; height: 40px;" data-letter="{{ letter }}">{{ letter }}</button>
+                {% endfor %}
+            </div>
+
+            <!-- Подсказка (если есть) -->
+            {% if element.hint %}
+            <div class="hint-container mt-3 text-center text-muted">
+                <i class="bi bi-lightbulb"></i> Подсказка: {{ element.hint }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
-    {% endif %}
+
+    <!-- Футер с баллами -->
+    <div class="card-footer bg-white text-center py-3 rounded-bottom d-none">
+        <div class="fs-5 fw-bold text-danger">
+            <span class="score-value">0</span>%
+        </div>
+    </div>
 </div>
+
+<!-- Скрытый контейнер с правильными словами -->
+<div class="correct-words d-none" data-words="{{ task.content_object.words|dict_to_json }}" data-blanks-num="{{ task.content_object.words|length }}"></div>

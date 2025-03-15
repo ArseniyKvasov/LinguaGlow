@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         selectedTranslationButton.classList.remove('active');
 
                         // Проверяем, правильно ли сопоставлены слова
-                        const isCorrect = checkPairCorrectness(word, translation);
+                        const isCorrect = checkPairCorrectness(taskContainer, word, translation);
 
                         // Формируем payload
                         const payload = {
