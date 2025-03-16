@@ -1,0 +1,22 @@
+.actions-container button {
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.actions-container button:hover {
+    opacity: 1;
+}
+.actions-container {
+    transition: opacity 0.3s ease;
+}
+
+.task-item:hover .actions-container,
+.actions-container.active {
+    display: flex !important;
+    opacity: 1;
+}
+
+/* Правда-ложь, тест */
+.correct-radio {
+   background-color: rgba(40, 167, 69, 0.2);
+}

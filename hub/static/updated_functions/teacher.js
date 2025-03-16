@@ -180,38 +180,52 @@ function handleAddSection(lessonId, sectionName) {
 }
 
 function sectionListInitialization() {
-    // Проходим по каждому названию секции и добавляем обработчики событий
+    // Проходим по каждому значку редактирования секции и добавляем обработчик события
     document.querySelectorAll('.edit-section-icon').forEach(icon => {
         icon.addEventListener('click', async (event) => {
             const sectionId = event.target.dataset.sectionId;
             const listItem = event.target.closest('.list-group-item');
-            const sectionNameSpan = listItem.querySelector('.section-name');
+            // Находим кнопку, содержащую название секции
+            const sectionLinkButton = listItem.querySelector('.section-link');
+            if (!sectionLinkButton) return;
 
-            const currentName = sectionNameSpan.textContent.trim();
+            const currentName = sectionLinkButton.textContent.trim();
+            // Создаем input для редактирования
             const inputField = document.createElement('input');
             inputField.type = 'text';
             inputField.value = currentName;
             inputField.classList.add('form-control', 'form-control-sm');
 
-            sectionNameSpan.replaceWith(inputField);
+            // Заменяем кнопку на input
+            sectionLinkButton.replaceWith(inputField);
             inputField.focus();
 
+            // Функция для сохранения изменений
             const saveChanges = async () => {
                 const newName = inputField.value.trim();
+                // Если имя изменилось и не пустое, отправляем изменения на сервер
                 if (newName && newName !== currentName) {
-                    handleSectionNameEdit(sectionId, newName);
-
-                    sectionNameSpan.textContent = newName;
+                    await handleSectionNameEdit(sectionId, newName);
                 }
-                if (inputField) {
-                    inputField.replaceWith(sectionNameSpan);
-                }
+                // Создаем новую кнопку с обновленным (или прежним) названием
+                const newSectionLinkButton = document.createElement('button');
+                newSectionLinkButton.type = 'button';
+                newSectionLinkButton.className = 'btn btn-link p-0 section-link text-decoration-none';
+                newSectionLinkButton.dataset.sectionId = sectionId;
+                newSectionLinkButton.textContent = newName || currentName;
+                // Возвращаем кнопку вместо input
+                inputField.replaceWith(newSectionLinkButton);
             };
 
+            // Сохраняем изменения по нажатию Enter
             inputField.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     saveChanges();
                 }
+            });
+            // Или при потере фокуса
+            inputField.addEventListener('blur', () => {
+                saveChanges();
             });
         });
     });
@@ -278,14 +292,13 @@ function addTaskToContext(lesson_id, task_id, header, content) {
         if (data.error) {
             showNotification(data.error, "danger");
         } else {
-            showTaskInContextWindow(data.task_id, data.header, data.content, "success");
+            showTaskInContextWindow(data.task_id, data.header, data.content);
         }
     })
     .catch(error => {
         showNotification("Произошла ошибка. Попробуйте выбрать другое задание или обратитесь в поддержку.", "danger");
     });
 }
-
 
 function removeTaskFromContext(taskId) {
     const lessonId = document.getElementById("main-container").dataset.lessonId;
@@ -298,7 +311,7 @@ function removeTaskFromContext(taskId) {
         }
     }).then(response => response.json())
       .then(data => {
-          if (data.error) {
+          if (data.error && data.error !== "Такого задания в контексте нет.") {
               showNotification(data.error, "danger");
           } else {
             removeAccordionElementFromContextWindow(data.task_id)
@@ -346,6 +359,142 @@ function addTextContext() {
     }
 }
 
+
+// Инициализация панели управления
+function deleteListener(taskContainer) {
+    // Получаем task_id из переданного контейнера
+    const taskId = taskContainer.id;
+
+    // Находим кнопку "Удалить" внутри переданного контейнера
+    const deleteButton = taskContainer.querySelector('.bi-trash').parentElement;
+
+    if (!deleteButton || !taskId) return; // Если кнопки или task_id нет, выходим
+
+    deleteButton.addEventListener('click', async function () {
+        const confirmDelete = confirm("Вы уверены, что хотите удалить это задание?");
+        if (!confirmDelete) return;
+
+        try {
+            const response = await fetch(`/hub/tasks/${taskId}/delete/`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+            });
+
+            if (response.ok) {
+                removeTaskFromContext(taskId);
+                taskContainer.remove();
+            } else {
+                showNotification("Ошибка при удалении задания", "danger");
+            }
+        } catch (error) {
+            showNotification("Проверьте подключение к интернету.", "danger");
+        }
+    });
+}
+
+const elementRussianNames = {
+    "wordlist": "Список слов",
+    "matchupthewords": "Соотнесите слова",
+    "essay": "Эссе",
+    "note": "Заметка",
+    "image": "Изображение",
+    "sortintocolumns": "Разбить на колонки",
+    "makeasentence": "Составить предложение",
+    "unscramble": "Расставить по порядку",
+    "fillintheblanks": "Заполнить пропуски",
+    "dialogue": "Диалог",
+    "article": "Статья",
+    "audio": "Аудио",
+    "test": "Тест",
+    "trueorfalse": "Правда или ложь",
+    "labelimages": "Подпишите изображения",
+    "embeddedtask": "Встроенное задание"
+};
+
+function formatTaskContent(taskType, raw_content) {
+    let content;
+    if (taskType === "wordlist") {
+        content = Object.entries(raw_content)
+            .map(([word, translation]) => `<b>${word}</b> - ${translation}`)
+            .join('<br>');
+    } else if (taskType === "matchupthewords") {
+        content = Object.entries(raw_content)
+            .map(([word, translation]) => `${word} - ${translation}`)
+            .join('\n');
+    } else if (taskType === "labelimages") {
+        content = raw_content.join(', ');
+    } else if (taskType === "unscramble") {
+        content = raw_content.map(({ word, shuffled_word, hint }) => {
+            let formatted = `${word.replaceAll("␣", " ")}`;
+            if (hint) {
+                formatted += ` (${hint})`;
+            }
+            return formatted;
+        }).join(', ');
+    } else if (taskType === "fillintheblanks") {
+        content = raw_content.replaceAll(/\[(.*?)\]/g, "_");
+    } else if (taskType === "test") {
+        content = raw_content.map((q, qIndex) => {
+            let answers = q.answers.map((a, aIndex) =>
+                `   ${aIndex + 1}. ${a.answer} ${a.correct ? "(✔)" : ""}`
+            ).join("\n");
+            return `${qIndex + 1}. ${q.question}:${answers}<br>`;
+        }).join("\n\n");
+    } else if (taskType === "makeasentence") {
+        content = raw_content.map(sentence => sentence.correct).join("<br>");
+    } else if (taskType === "sortintocolumns") {
+        content = Object.entries(raw_content)
+            .map(([columnTitle, wordsArray]) => `${columnTitle}: ${wordsArray.join(", ")}`)
+            .join("<br>");
+    } else if (taskType === "trueorfalse") {
+        content = raw_content.map(statement => `${statement.question}: ${statement.correct ? "Правда" : "Ложь"}`)
+            .join("<br>");
+    } else {
+        content = raw_content;
+    }
+    return content;
+}
+
+function initAttachTaskListeners(taskContainer) {
+    const icon = taskContainer.querySelector(".bi-bookmark");
+
+    if (!icon) return;
+
+    icon.addEventListener("click", async function () {
+        const taskContainer = this.closest(".task-item"); // Родительский контейнер
+        if (!taskContainer) return;
+
+        const taskId = taskContainer.id;
+        const taskType = taskContainer.dataset.taskType;
+        const lessonId = document.getElementById("main-container").dataset.lessonId;
+
+        if (!taskId || !taskType || !lessonId) {
+            showNotification("Ошибка: отсутствуют данные задания.", "danger");
+            return;
+        }
+
+        // Получаем данные с сервера
+        const taskData = await fetchTaskData(taskId);
+        if (!taskData) return;
+
+        let header = elementRussianNames[taskType];
+        if (taskData.title) {
+            header += ` - ${taskData.title}`;
+        }
+
+        // Убираем id и title, оставляем только контент
+        const { id, title, image_urls, audio_url, display_format, ...contentData } = taskData;
+        const raw_content = Object.values(contentData)[0] || "Нет данных";
+
+        const content = formatTaskContent(taskType, raw_content);
+
+        // Добавляем задание в контекст
+        addTaskToContext(lessonId, taskId, header, content);
+    });
+}
 
 // Загрузка функций, доступных только учителю
 document.addEventListener('DOMContentLoaded', () => {

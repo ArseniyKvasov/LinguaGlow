@@ -15,7 +15,7 @@ urlpatterns = [
     path('section/<uuid:section_id>/add_task/', views.taskFactory, name='add_task'),
     path('api/tasks/<uuid:task_id>/', views.get_task_data, name='get_task_data'),
     path('api/upload/audio/', views.upload_audio, name='upload_audio'),
-    path('api/tasks/<uuid:task_id>/delete/', views.delete_task, name='delete_task'),
+    path('tasks/<uuid:task_id>/delete/', views.delete_task, name='delete_task'),
 
     path('classroom/<uuid:classroom_id>/', views.classroom_view, name='classroom_view'),
     path("choose-classroom/<uuid:lesson_id>/", views.choose_classroom, name="choose_classroom"),
@@ -35,4 +35,5 @@ urlpatterns = [
 
     path('add-context-element/<uuid:lesson_id>/', views.addContextElement, name='add_context_element'),
     path('remove-context-element/<uuid:lesson_id>/<str:task_id>/', views.removeTaskFromContext, name='remove_task_from_context'),
+    path('context/<uuid:lesson_id>/get/', views.getContext, name='get_context'),
 ]

@@ -8,11 +8,11 @@ from django.db.models import Max
 from .forms import ClassroomForm
 from django.db import models
 from django.urls import reverse
+from django.views.decorators.http import require_POST
 import json
 from django.conf import settings
 import uuid
 from datetime import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseForbidden
 from django.db.models import Q
 from django.utils import timezone
@@ -176,6 +176,15 @@ def delete_section_view(request, section_id):
 
     return redirect('lesson_page', lesson_id=lesson_id)
 
+def getContext(request, lesson_id):
+    lesson_obj = get_object_or_404(lesson, id=lesson_id)
+
+    if request.user != lesson_obj.course.user:
+        return HttpResponseForbidden("Вы не можете просматривать этот урок.")
+
+    if request.method == "GET":
+        return JsonResponse({'context': lesson_obj.context})
+
 def addContextElement(request, lesson_id):
     if request.method != "POST":
         return JsonResponse({"error": "Доступ запрещен."}, status=405)
@@ -209,6 +218,7 @@ def addContextElement(request, lesson_id):
     # Проверяем, существует ли уже такой task_id
     if task_id in context:
         return JsonResponse({"error": "Вы уже добавили это задание в контекст."}, status=400)
+
 
     # Добавляем новый элемент
     context[task_id] = {"header": header, "content": content}
@@ -354,7 +364,6 @@ def get_task_data(request, task_id):
             }
         else:
             return JsonResponse({"error": "Unknown task type"}, status=400)
-        print(data)
         return JsonResponse(data)
 
     except Exception as e:
@@ -364,6 +373,9 @@ def get_task_data(request, task_id):
 def delete_task(request, task_id):
     try:
         task_instance = BaseTask.objects.get(id=task_id)
+        course_instance = task_instance.section.lesson.course
+        if request.user != course_instance.user:
+            return JsonResponse({"error": "У вас нет прав на удаление задания"}, status=403)
         task_order = task_instance.order
         if task_instance.content_object:
             task_instance.content_object.delete()

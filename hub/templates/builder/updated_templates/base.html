@@ -9,7 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="{% static 'updated_functions/updated_styles.css' %}">
+    <link rel="stylesheet" href="{% static 'updated_functions/styles/common.css' %}">
+    <link rel="stylesheet" href="{% static 'updated_functions/styles/teacher.css' %}">
     <style>
         body {
             font-family: 'Montserrat', sans-serif;
@@ -32,7 +33,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <div class="ms-auto d-flex align-items-center">
-                    <a class="nav-link me-3" href="{% url 'home' %}">Кабинет</a>
+                    <a class="nav-link me-3" href="{% url 'home' %}">Главная</a>
                     <a class="nav-link" href="#">Помощь</a>
                 </div>
             </div>
@@ -43,7 +44,7 @@
         <!-- Основной контент страницы -->
         <div id="main-container" class="col-12 col-md-9" data-lesson-id="{{ lesson.id }}" style="z-index: 1;">
             {% for task in tasks %}
-                <div class="task-item card border-light mb-4 rounded" id="{{ task.id }}" data-section-id="{{ task.section.id }}" data-task-type="{{ task.content_type.model }}"></div>
+                <div class="task-item card border-0 mb-4 rounded" id="{{ task.id }}" data-section-id="{{ task.section.id }}" data-task-type="{{ task.content_type.model }}"></div>
             {% endfor %}
         </div>
 
@@ -54,9 +55,10 @@
                 <div class="card h-100">
                     <ul class="list-group list-group-flush" id="section-list">
                         {% for section in section_list %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center text-primary section-link"
-                                data-section-id="{{ section.id }}">
-                                <span class="section-name">{{ section.name }}</span>
+                            <li class="list-group-item d-flex justify-content-between align-items-center text-primary">
+                                <button type="button" class="btn btn-link p-0 section-link text-decoration-none" data-section-id="{{ section.id }}">
+                                    {{ section.name }}
+                                </button>
                                 <div class="section-action-buttons d-flex align-items-center ms-2">
                                     <!-- Иконка редактирования -->
                                     <i class="bi bi-pencil-fill text-secondary edit-section-icon"
